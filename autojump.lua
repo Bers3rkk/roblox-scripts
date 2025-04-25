@@ -1,98 +1,119 @@
--- Script by RoopPoofie (Centered GUI + Auto Jump Disabler + Timer Loop)
+-- GUI: Bolinha moderna, arrastável, com ícone de pulo e AutoJump disabler persistente
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
 local StarterGui = game:GetService("StarterGui")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
-local function runScript()
-    local player = Players.LocalPlayer
-    if not player then
-        warn("Player not initialized!")
-        return
-    end
-
-    -- ================= GUI SECTION =================
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Parent = player.PlayerGui
+-- Criar ou reutilizar a ScreenGui
+local screenGui = playerGui:FindFirstChild("AutoJumpDisablerGui")
+if not screenGui then
+    screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "AutoJumpDisablerGui"
+    screenGui.Parent = playerGui
     screenGui.ResetOnSpawn = false
+end
 
-    -- Centered Background Frame
-    local backgroundFrame = Instance.new("Frame")
-    backgroundFrame.Parent = screenGui
-    backgroundFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-    backgroundFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-    backgroundFrame.Size = UDim2.new(0, 660, 0, 80)
-    backgroundFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    backgroundFrame.BackgroundTransparency = 0.7
+-- Criar ou reutilizar o botão (a bolinha)
+local button = screenGui:FindFirstChild("DisableJumpButton")
+if not button then
+    button = Instance.new("TextButton")
+    button.Parent = screenGui
+    button.Size = UDim2.new(0, 60, 0, 60)
+    button.BackgroundColor3 = Color3.fromRGB(40, 40, 40) -- Preto moderno (cinza escuro)
+    button.Text = "⤴" -- Ícone de pulo simples
+    button.TextColor3 = Color3.fromRGB(255, 255, 255) -- Branco
+    button.TextScaled = true
+    button.Font = Enum.Font.GothamBold
+    button.BorderSizePixel = 0
+    button.AutoButtonColor = true
+    button.Name = "DisableJumpButton"
+    button.BackgroundTransparency = 0.1
+    button.ClipsDescendants = true
+    button.ZIndex = 10
 
-    -- Centered Text Label
-    local creditText = Instance.new("TextLabel")
-    creditText.Parent = screenGui
-    creditText.Text = "Script Made by RoopPoofie"
-    creditText.Font = Enum.Font.GothamBold
-    creditText.TextSize = 36
-    creditText.TextColor3 = Color3.fromRGB(255, 255, 255)
-    creditText.BackgroundTransparency = 1
-    creditText.Size = UDim2.new(0, 300, 0, 40)
-    creditText.AnchorPoint = Vector2.new(0.5, 0.5)
-    creditText.Position = UDim2.new(0.5, 0, 0.5, 0)
-    creditText.ZIndex = 2
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = button
+end
 
-    coroutine.wrap(function()
-        task.wait(4)
-        for i = 1, 10 do
-            creditText.TextTransparency = i/10
-            backgroundFrame.BackgroundTransparency = 0.7 + (i/10 * 0.3)
-            task.wait(0.1)
-        end
-        screenGui:Destroy()
-    end)()
+-- Restaurar posição anterior, se houver
+local savedX = player:GetAttribute("JumpButtonX")
+local savedY = player:GetAttribute("JumpButtonY")
+if savedX and savedY then
+    button.Position = UDim2.new(0, savedX, 0, savedY)
+else
+    button.Position = UDim2.new(0.5, -30, 0.5, -30)
+end
 
-    -- ============= AUTO JUMP DISABLER ==============
-    local function disableAutoJump(character)
-        local humanoid = character:WaitForChild("Humanoid")
-        humanoid.AutoJumpEnabled = false
-
-        local jumpCooldown = 0.5
-        local canJump = true
-
-        humanoid.JumpRequest:Connect(function()
-            if canJump and humanoid.FloorMaterial ~= Enum.Material.Air then
-                canJump = false
-                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                task.wait(jumpCooldown)
-                canJump = true
-            end
-        end)
-
-        -- Keep AutoJump off
-        coroutine.wrap(function()
-            while humanoid and humanoid.Parent do
-                task.wait()
-                humanoid.AutoJumpEnabled = false
-            end
-        end)()
-    end
-
+-- Função para desativar AutoJump
+local function disableAutoJump()
     local character = player.Character or player.CharacterAdded:Wait()
-    disableAutoJump(character)
-
-    player.CharacterAdded:Connect(function()
-        task.wait(0.5)
-        disableAutoJump(player.Character)
-    end)
+    local humanoid = character:FindFirstChild("Humanoid") or character:WaitForChild("Humanoid")
+    humanoid.AutoJumpEnabled = false
 
     StarterGui:SetCore("SendNotification", {
-        Title = "SYSTEM",
-        Text = "Auto-Jump Disabled\nScript by RoopPoofie",
-        Duration = 5,
-        Icon = "rbxassetid://6726578264"
+        Title = "AutoJump",
+        Text = "Auto Jump foi desativado!",
+        Duration = 3
     })
 end
 
--- Executa pela primeira vez
-runScript()
+-- Clique desativa AutoJump
+button.MouseButton1Click:Connect(function()
+    disableAutoJump()
+end)
 
--- Executa a cada 30 segundos
-while true do
-    task.wait(30)
-    runScript()
+-- Arrastar com mouse ou toque
+local dragging = false
+local dragInput, dragStart, startPos
+
+local function updateInput(input)
+    local delta = input.Position - dragStart
+    local newPos = UDim2.new(
+        startPos.X.Scale,
+        startPos.X.Offset + delta.X,
+        startPos.Y.Scale,
+        startPos.Y.Offset + delta.Y
+    )
+    button.Position = newPos
+    player:SetAttribute("JumpButtonX", newPos.X.Offset)
+    player:SetAttribute("JumpButtonY", newPos.Y.Offset)
 end
+
+button.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = button.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+button.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement
+    or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        updateInput(input)
+    end
+end)
+
+-- Garante que o AutoJump seja desativado após respawn
+player.CharacterAdded:Connect(function()
+    task.wait(1)
+    disableAutoJump()
+end)
+
+-- Executa na primeira vez
+disableAutoJump()
