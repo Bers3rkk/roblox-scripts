@@ -1,4 +1,4 @@
--- GUI: Caveira RGB com borda RGB e brilho leve, arrastável, com animações e AutoJump disabler
+-- GUI: Caveira RGB com borda RGB suave, botão maior, arrastável, com animações, sombra e som ao clicar
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
@@ -21,13 +21,13 @@ local button = screenGui:FindFirstChild("DisableJumpButton")
 if not button then
     button = Instance.new("TextButton")
     button.Parent = screenGui
-    button.Size = UDim2.new(0, 60, 0, 60)
-    button.Position = UDim2.new(0.5, -30, 0.5, -30)
+    button.Size = UDim2.new(0, 80, 0, 80)
+    button.Position = UDim2.new(0.5, -40, 0.5, -40)
     button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     button.Text = "☠️"
     button.TextColor3 = Color3.fromRGB(255, 255, 255)
     button.TextScaled = true
-    button.Font = Enum.Font.GothamBold
+    button.Font = Enum.Font.Gotham
     button.BorderSizePixel = 2
     button.BorderColor3 = Color3.fromRGB(255, 255, 255)
     button.BackgroundTransparency = 0.1
@@ -46,6 +46,19 @@ if not button then
     uiStroke.Transparency = 0.25
     uiStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     uiStroke.Parent = button
+
+    -- Sombra
+    local shadow = Instance.new("ImageLabel")
+    shadow.Name = "Shadow"
+    shadow.BackgroundTransparency = 1
+    shadow.Image = "rbxassetid://1316045217"
+    shadow.ImageTransparency = 0.7
+    shadow.ScaleType = Enum.ScaleType.Slice
+    shadow.SliceCenter = Rect.new(10, 10, 118, 118)
+    shadow.Size = UDim2.new(1, 20, 1, 20)
+    shadow.Position = UDim2.new(0, -10, 0, -10)
+    shadow.ZIndex = 5
+    shadow.Parent = button
 end
 
 -- Restaurar posição salva
@@ -54,6 +67,12 @@ local savedY = player:GetAttribute("JumpButtonY")
 if savedX and savedY then
     button.Position = UDim2.new(0, savedX, 0, savedY)
 end
+
+-- Som de clique
+local clickSound = Instance.new("Sound")
+clickSound.SoundId = "rbxassetid://9118823101" -- som de clique suave
+clickSound.Volume = 0.3
+clickSound.Parent = button
 
 -- Função: Desativar AutoJump
 local function disableAutoJump()
@@ -71,10 +90,10 @@ end
 -- Animação ao clicar
 local function animateClick()
     local clickTween = TweenService:Create(button, TweenInfo.new(0.1), {
-        Size = UDim2.new(0, 66, 0, 66)
+        Size = UDim2.new(0, 88, 0, 88)
     })
     local backTween = TweenService:Create(button, TweenInfo.new(0.1), {
-        Size = UDim2.new(0, 60, 0, 60)
+        Size = UDim2.new(0, 80, 0, 80)
     })
     clickTween:Play()
     clickTween.Completed:Connect(function()
@@ -85,6 +104,12 @@ end
 button.MouseButton1Click:Connect(function()
     disableAutoJump()
     animateClick()
+    if clickSound.IsLoaded then
+        clickSound:Play()
+    else
+        clickSound.Loaded:Wait()
+        clickSound:Play()
+    end
 end)
 
 -- Animação ao arrastar
@@ -107,14 +132,14 @@ end
 local function startDragEffect()
     TweenService:Create(button, TweenInfo.new(0.15), {
         BackgroundTransparency = 0.4,
-        Size = UDim2.new(0, 54, 0, 54)
+        Size = UDim2.new(0, 72, 0, 72)
     }):Play()
 end
 
 local function endDragEffect()
     TweenService:Create(button, TweenInfo.new(0.15), {
         BackgroundTransparency = 0.1,
-        Size = UDim2.new(0, 60, 0, 60)
+        Size = UDim2.new(0, 80, 0, 80)
     }):Play()
 end
 
@@ -146,7 +171,7 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Animação RGB lenta e suave
+-- Animação RGB lenta e suave (caveira + borda)
 local stroke = button:FindFirstChildWhichIsA("UIStroke")
 task.spawn(function()
     local t = 0
