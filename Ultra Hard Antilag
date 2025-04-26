@@ -1,0 +1,128 @@
+-- Ultra Hard Antilag (Remove sombras dos Players também)
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local StarterGui = game:GetService("StarterGui")
+local Terrain = Workspace:FindFirstChildOfClass("Terrain")
+
+-- Função para remover efeitos visuais
+local function removerEfeitos(obj)
+    if obj:IsA("ParticleEmitter") or
+       obj:IsA("Smoke") or
+       obj:IsA("Fire") or
+       obj:IsA("Sparkles") or
+       obj:IsA("Explosion") or
+       obj:IsA("Trail") or
+       obj:IsA("Beam") or
+       obj:IsA("PointLight") or
+       obj:IsA("SpotLight") or
+       obj:IsA("SurfaceLight") or
+       obj:IsA("BillboardGui") or
+       obj:IsA("SurfaceGui") then
+        obj:Destroy()
+    end
+end
+
+-- Função para destruir texturas e roupas
+local function destruirTexturas(obj)
+    if obj:IsA("Decal") or obj:IsA("Texture") then
+        obj:Destroy()
+    end
+    if obj:IsA("ShirtGraphic") or obj:IsA("Shirt") or obj:IsA("Pants") then
+        obj:Destroy()
+    end
+end
+
+-- Função para desabilitar sombras nos personagens
+local function removerSombras(character)
+    for _, part in ipairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CastShadow = false -- Impede a sombra de aparecer
+        end
+    end
+end
+
+-- Limpar personagem
+local function limparCharacter(character)
+    for _, obj in ipairs(character:GetDescendants()) do
+        removerEfeitos(obj)
+        destruirTexturas(obj)
+    end
+    removerSombras(character)
+end
+
+-- Limpar mapa
+local function limparMapa()
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        removerEfeitos(obj)
+        destruirTexturas(obj)
+        if obj:IsA("BasePart") then
+            obj.CastShadow = false -- Sem sombra no mapa
+        end
+    end
+end
+
+-- Monitorar novos objetos
+Workspace.DescendantAdded:Connect(function(obj)
+    task.defer(function()
+        removerEfeitos(obj)
+        destruirTexturas(obj)
+        if obj:IsA("BasePart") then
+            obj.CastShadow = false
+        end
+    end)
+end)
+
+-- Monitorar novos players
+Players.PlayerAdded:Connect(function(plr)
+    plr.CharacterAdded:Connect(function(char)
+        task.wait(1)
+        limparCharacter(char)
+    end)
+end)
+
+-- Aplicar nos players atuais
+for _, plr in ipairs(Players:GetPlayers()) do
+    if plr.Character then
+        limparCharacter(plr.Character)
+    end
+end
+
+-- Aplicar no mapa inicial
+limparMapa()
+
+-- Ajustes no Lighting
+Lighting.GlobalShadows = false
+Lighting.FogEnd = math.huge
+Lighting.Brightness = 1
+Lighting.ClockTime = 14
+Lighting.EnvironmentDiffuseScale = 0
+Lighting.EnvironmentSpecularScale = 0
+Lighting.Ambient = Color3.fromRGB(128, 128, 128)
+Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+Lighting.ExposureCompensation = 0
+
+-- Reduzir Renderização (Streaming)
+pcall(function()
+    Workspace.StreamingEnabled = true
+    Workspace.StreamingTargetRadius = 64
+    Workspace.StreamingPauseMode = Enum.StreamingPauseMode.ClientPhysicsPause
+end)
+
+-- Reduzir Decorações do Terreno
+if Terrain then
+    Terrain.Decorations = false
+end
+
+-- Notificação
+pcall(function()
+    StarterGui:SetCore("SendNotification", {
+        Title = "ULTRA ANTILAG",
+        Text = "Efeitos, Texturas, Sombras e Renderização reduzidos!",
+        Duration = 5,
+        Icon = "rbxassetid://6726578264"
+    })
+end)
+
+print("[ULTRA ANTILAG] Executado com sucesso!")
