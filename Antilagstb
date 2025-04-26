@@ -1,15 +1,6 @@
--- Script Anti-Lag Ultra Inteligente (Versão com Notificação)
+-- Script Anti-Lag Ultra Inteligente (Versão Normal)
 
 local workspace = game:GetService("Workspace")
-local StarterGui = game:GetService("StarterGui")
-
--- Mostrar notificação de ativação
-StarterGui:SetCore("SendNotification", {
-    Title = "Sistema",
-    Text = "Antilag Ativado",
-    Duration = 5,
-    Icon = "rbxassetid://6726578264" -- Pode trocar o ícone se quiser
-})
 
 local materiaisPedra = {
     Enum.Material.Concrete,
