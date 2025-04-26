@@ -1,70 +1,89 @@
--- GUI: Bers3rk botão, partículas, bounce, fúria com fogo, pulso variável
+-- SCRIPT "BERS3RK BUTTON" v2.1: Fúria dura 15 segundos
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local StarterGui = game:GetService("StarterGui")
+local RunService = game:GetService("RunService")
+
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 -- Criar ScreenGui
-local screenGui = playerGui:FindFirstChild("AutoJumpDisablerGui")
-if not screenGui then
-    screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "AutoJumpDisablerGui"
-    screenGui.Parent = playerGui
-    screenGui.ResetOnSpawn = false
-end
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "Bers3rkGui"
+screenGui.Parent = playerGui
+screenGui.ResetOnSpawn = false
 
--- Criar botão
-local button = screenGui:FindFirstChild("DisableJumpButton")
-if not button then
-    button = Instance.new("TextButton")
-    button.Parent = screenGui
-    button.Size = UDim2.new(0, 100, 0, 50)
-    button.Position = UDim2.new(0.5, -50, 0.5, -25)
-    button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    button.Text = "Bers3rk"
-    button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    button.TextScaled = true
-    button.Font = Enum.Font.Gotham
-    button.BorderSizePixel = 0
-    button.BackgroundTransparency = 0.1
-    button.AutoButtonColor = false
-    button.Name = "DisableJumpButton"
-    button.ClipsDescendants = true
-    button.ZIndex = 10
+-- Criar Botão
+local button = Instance.new("TextButton")
+button.Name = "Bers3rkButton"
+button.Parent = screenGui
+button.Size = UDim2.new(0, 100, 0, 50)
+button.Position = UDim2.new(0.5, -50, 0.8, -25)
+button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+button.BackgroundTransparency = 0.1
+button.BorderSizePixel = 0
+button.Text = "Bers3rk"
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.Font = Enum.Font.Gotham
+button.TextScaled = true
+button.AutoButtonColor = false
+button.ZIndex = 10
 
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(1, 0)
-    corner.Parent = button
-end
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(1, 0)
+corner.Parent = button
 
--- Restaurar posição salva
-local savedX = player:GetAttribute("JumpButtonX")
-local savedY = player:GetAttribute("JumpButtonY")
-if savedX and savedY then
-    button.Position = UDim2.new(0, savedX, 0, savedY)
-end
+-- Partículas RGB quadradas
+local particleEmitter = Instance.new("ParticleEmitter")
+particleEmitter.Texture = "rbxassetid://2592323905"
+particleEmitter.Parent = button
+particleEmitter.Rate = 10
+particleEmitter.Lifetime = NumberRange.new(0.5, 1)
+particleEmitter.Speed = NumberRange.new(3,6)
+particleEmitter.Size = NumberSequence.new(0.2)
+particleEmitter.Transparency = NumberSequence.new(0.5)
+particleEmitter.LightEmission = 1
+particleEmitter.LockedToPart = true
+particleEmitter.VelocitySpread = 180
 
--- Função: desativar AutoJump
-local function disableAutoJump()
-    local character = player.Character or player.CharacterAdded:Wait()
-    local humanoid = character:FindFirstChild("Humanoid") or character:WaitForChild("Humanoid")
-    humanoid.AutoJumpEnabled = false
-
-    StarterGui:SetCore("SendNotification", {
-        Title = "AutoJump",
-        Text = "Auto Jump foi desativado!",
-        Duration = 3
-    })
-end
-
-button.MouseButton1Click:Connect(function()
-    disableAutoJump()
-    animateClick()
+-- Loop RGB lento
+task.spawn(function()
+    local t = 0
+    while true do
+        t += 0.02
+        local r = math.sin(t) * 127 + 128
+        local g = math.sin(t + 2) * 127 + 128
+        local b = math.sin(t + 4) * 127 + 128
+        local color = Color3.fromRGB(r, g, b)
+        particleEmitter.Color = ColorSequence.new(color)
+        button.TextColor3 = color
+        task.wait(0.03)
+    end
 end)
 
--- Arrastar botão
+-- Movimento de Bounce + Pulso variável
+task.spawn(function()
+    while true do
+        local growSize = UDim2.new(0, 110, 0, 55)
+        local shrinkSize = UDim2.new(0, 100, 0, 50)
+
+        local growTween = TweenService:Create(button, TweenInfo.new(math.random(1, 2), Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Size = growSize
+        })
+        local shrinkTween = TweenService:Create(button, TweenInfo.new(math.random(1, 2), Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+            Size = shrinkSize
+        })
+
+        growTween:Play()
+        growTween.Completed:Wait()
+        shrinkTween:Play()
+        shrinkTween.Completed:Wait()
+    end
+end)
+
+-- Botão arrastável
 local dragging = false
 local dragInput, dragStart, startPos
 
@@ -77,8 +96,6 @@ local function updateInput(input)
         startPos.Y.Offset + delta.Y
     )
     button.Position = newPos
-    player:SetAttribute("JumpButtonX", newPos.X.Offset)
-    player:SetAttribute("JumpButtonY", newPos.Y.Offset)
 end
 
 button.InputBegan:Connect(function(input)
@@ -106,98 +123,64 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Pulso variável + bounce
-task.spawn(function()
-    while true do
-        local growSize = UDim2.new(0, 110, 0, 55)
-        local shrinkSize = UDim2.new(0, 100, 0, 50)
+-- Função de Desativar AutoJump
+local function disableAutoJump()
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
+    humanoid.AutoJumpEnabled = false
 
-        local growTween = TweenService:Create(button, TweenInfo.new(math.random(1, 3), Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Size = growSize
-        })
-        local shrinkTween = TweenService:Create(button, TweenInfo.new(math.random(1, 3), Enum.EasingStyle.Back, Enum.EasingDirection.In), {
-            Size = shrinkSize
-        })
+    StarterGui:SetCore("SendNotification", {
+        Title = "AutoJump",
+        Text = "Auto Jump desativado!",
+        Duration = 3
+    })
+end
 
-        growTween:Play()
-        growTween.Completed:Wait()
-        shrinkTween:Play()
-        shrinkTween.Completed:Wait()
-    end
-end)
-
--- Partículas RGB quadradinhas
-local particleEmitter = Instance.new("ParticleEmitter")
-particleEmitter.Texture = "rbxassetid://2592323905" -- textura quadrada
-particleEmitter.Parent = button
-particleEmitter.Rate = 10
-particleEmitter.Lifetime = NumberRange.new(0.5, 1)
-particleEmitter.Speed = NumberRange.new(3,6)
-particleEmitter.Size = NumberSequence.new(0.2)
-particleEmitter.Transparency = NumberSequence.new(0.5)
-particleEmitter.LightEmission = 1
-particleEmitter.LockedToPart = true
-particleEmitter.VelocitySpread = 180
-
-task.spawn(function()
-    local t = 0
-    while true do
-        t += 0.02
-        local r = math.sin(t) * 127 + 128
-        local g = math.sin(t + 2) * 127 + 128
-        local b = math.sin(t + 4) * 127 + 128
-        particleEmitter.Color = ColorSequence.new(Color3.fromRGB(r, g, b))
-        button.TextColor3 = Color3.fromRGB(r, g, b)
-        task.wait(0.03)
-    end
-end)
-
--- Cria "fogo" visual
-local fireParticles = Instance.new("ParticleEmitter")
-fireParticles.Texture = "rbxassetid://284205403 -- textura de fogo
-fireParticles.Parent = button
-fireParticles.Enabled = false
-fireParticles.Lifetime = NumberRange.new(0.5)
-fireParticles.Speed = NumberRange.new(5,10)
-fireParticles.Rate = 50
-fireParticles.Size = NumberSequence.new(0.3)
-fireParticles.LightEmission = 1
-fireParticles.Transparency = NumberSequence.new(0.3)
-fireParticles.Rotation = NumberRange.new(0, 360)
-fireParticles.VelocitySpread = 360
-
--- Modo de Fúria
+-- Fúria
 local clickCount = 0
 local furyActive = false
 
-local function activateFury()
+-- Cria efeito de fogo
+local fireEmitter = Instance.new("ParticleEmitter")
+fireEmitter.Parent = button
+fireEmitter.Texture = "rbxassetid://4605944955"
+fireEmitter.Rate = 0
+fireEmitter.Lifetime = NumberRange.new(0.5, 1)
+fireEmitter.Speed = NumberRange.new(5, 10)
+fireEmitter.Size = NumberSequence.new(0.4)
+fireEmitter.LightEmission = 1
+fireEmitter.Rotation = NumberRange.new(0, 360)
+fireEmitter.VelocitySpread = 360
+fireEmitter.Transparency = NumberSequence.new(0.5)
+
+function activateFury()
     if furyActive then return end
     furyActive = true
+
     StarterGui:SetCore("SendNotification", {
         Title = "BERSERK MODE",
-        Text = "Fúria ativada!",
+        Text = "Fúria ativada por 15s!",
         Duration = 5
     })
-    
-    -- Liga fogo
-    fireParticles.Enabled = true
-    
+
+    fireEmitter.Rate = 100
+
     local furyTween = TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out, -1, true), {
         Size = UDim2.new(0, 130, 0, 65),
         BackgroundColor3 = Color3.fromRGB(200, 30, 30)
     })
     furyTween:Play()
-    
-    task.wait(5)
-    
-    furyTween:Cancel()
-    button.Size = UDim2.new(0, 100, 0, 50)
-    button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    fireParticles.Enabled = false
-    furyActive = false
+
+    task.delay(15, function()
+        furyTween:Cancel()
+        fireEmitter.Rate = 0
+        button.Size = UDim2.new(0, 100, 0, 50)
+        button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        furyActive = false
+    end)
 end
 
-function animateClick()
+function countClicks()
     clickCount += 1
     if clickCount >= 5 then
         activateFury()
@@ -205,7 +188,12 @@ function animateClick()
     end
 end
 
--- AutoJump também quando morrer/resetar
+button.MouseButton1Click:Connect(function()
+    disableAutoJump()
+    countClicks()
+end)
+
+-- AutoJump fix quando morrer/resetar
 player.CharacterAdded:Connect(function()
     task.wait(1)
     disableAutoJump()
