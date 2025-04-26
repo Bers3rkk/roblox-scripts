@@ -1,35 +1,39 @@
--- Script Anti-Lag Turbo PRO com Botão Estiloso (Mudança de Cor)
+-- Script Anti-Lag Turbo PRO (Compatível e Corrigido)
 
-local workspace = game:GetService("Workspace")
-local lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
 local StarterGui = game:GetService("StarterGui")
-local player = game:GetService("Players").LocalPlayer
-local terrain = workspace:FindFirstChildOfClass("Terrain")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
+local Terrain = Workspace:FindFirstChildOfClass("Terrain")
+
+-- Garante que PlayerGui exista
+local playerGui = player:WaitForChild("PlayerGui")
 
 -- Cria GUI
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "AntilagTurboUI"
-screenGui.Parent = player:WaitForChild("PlayerGui")
+screenGui.Name = "AntilagTurboUI_"..tostring(math.random(1000,9999)) -- Nome único
+screenGui.Parent = playerGui
 screenGui.ResetOnSpawn = false
 
 -- Cria Botão
 local button = Instance.new("TextButton")
-button.Parent = screenGui
 button.Size = UDim2.new(0, 110, 0, 50)
 button.Position = UDim2.new(0.05, 0, 0.05, 0)
-button.BackgroundColor3 = Color3.fromRGB(20, 20, 20) -- Começa preto
+button.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 button.BackgroundTransparency = 0.2
 button.BorderSizePixel = 0
 button.Text = "Antilag OFF"
 button.TextColor3 = Color3.fromRGB(255, 255, 255)
 button.Font = Enum.Font.GothamBold
 button.TextSize = 20
+button.Parent = screenGui
 button.Active = true
 button.Draggable = true
 button.AutoButtonColor = false
 
--- Arredonda o botão
+-- Arredondar o botão
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(1, 0)
 corner.Parent = button
@@ -37,7 +41,7 @@ corner.Parent = button
 -- Variável de Controle
 local AntilagAtivado = false
 
--- Configurações para detectar pedras
+-- Configurações de Limpeza
 local materiaisPedra = {
     Enum.Material.Concrete,
     Enum.Material.Slate,
@@ -51,7 +55,6 @@ local nomesProvaveis = {
     "Rock", "Boulder", "Debris", "Stone", "GroundBreak", "ShatteredRock", "Chunk", "Rubble"
 }
 
--- Funções de limpeza
 local function criadoRecentemente(obj)
     return tick() - obj:GetDebugId() < 10
 end
@@ -87,3 +90,80 @@ end
 
 local function remover(obj)
     if ehPedraDeCombate(obj) then
+        obj:Destroy()
+    end
+    removerParticulas(obj)
+
+    if obj:IsA("Decal") or obj:IsA("Texture") then
+        obj:Destroy()
+    end
+end
+
+local function ativarAntilag()
+    Workspace.StreamingEnabled = true
+    Lighting.GlobalShadows = false
+    Lighting.FogEnd = 1000000
+    Lighting.Brightness = 1
+
+    if Terrain then
+        Terrain.WaterReflectance = 0
+        Terrain.WaterTransparency = 1
+        Terrain.Decoration = false
+    end
+
+    Workspace.DescendantAdded:Connect(function(obj)
+        task.defer(remover, obj)
+    end)
+
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        remover(obj)
+    end
+end
+
+local function bounce()
+    local goal1 = { Size = UDim2.new(0, 120, 0, 55) }
+    local tween1 = TweenService:Create(button, TweenInfo.new(0.1, Enum.EasingStyle.Back, Enum.EasingDirection.Out), goal1)
+    local goal2 = { Size = UDim2.new(0, 110, 0, 50) }
+    local tween2 = TweenService:Create(button, TweenInfo.new(0.1, Enum.EasingStyle.Sine, Enum.EasingDirection.In), goal2)
+
+    tween1:Play()
+    tween1.Completed:Wait()
+    tween2:Play()
+end
+
+local function mudarCor(cor)
+    TweenService:Create(button, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+        BackgroundColor3 = cor
+    }):Play()
+end
+
+local function enviarNotificacao(titulo, texto)
+    -- Espera o SetCore estar pronto
+    local sucesso, erro = pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = titulo,
+            Text = texto,
+            Duration = 5,
+            Icon = "rbxassetid://6726578264"
+        })
+    end)
+    if not sucesso then
+        warn("Não foi possível enviar notificação:", erro)
+    end
+end
+
+button.MouseButton1Click:Connect(function()
+    bounce()
+    AntilagAtivado = not AntilagAtivado
+
+    if AntilagAtivado then
+        ativarAntilag()
+        button.Text = "Antilag ON"
+        mudarCor(Color3.fromRGB(0, 255, 0)) -- Verde
+        enviarNotificacao("Sistema", "Antilag Turbo Ativado!")
+    else
+        button.Text = "Antilag OFF"
+        mudarCor(Color3.fromRGB(20, 20, 20)) -- Preto
+        enviarNotificacao("Sistema", "Antilag Turbo Desativado!")
+    end
+end)
