@@ -1,8 +1,7 @@
--- GUI: Caveira RGB com borda RGB suave, botão maior, arrastável, com animações, sombra e som ao clicar
+-- GUI: Caveira RGB sem sombra nem borda, tamanho 50x50, arrastável e com animação
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -21,15 +20,14 @@ local button = screenGui:FindFirstChild("DisableJumpButton")
 if not button then
     button = Instance.new("TextButton")
     button.Parent = screenGui
-    button.Size = UDim2.new(0, 80, 0, 80)
-    button.Position = UDim2.new(0.5, -40, 0.5, -40)
+    button.Size = UDim2.new(0, 50, 0, 50)
+    button.Position = UDim2.new(0.5, -25, 0.5, -25)
     button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     button.Text = "☠️"
     button.TextColor3 = Color3.fromRGB(255, 255, 255)
     button.TextScaled = true
     button.Font = Enum.Font.Gotham
-    button.BorderSizePixel = 2
-    button.BorderColor3 = Color3.fromRGB(255, 255, 255)
+    button.BorderSizePixel = 0
     button.BackgroundTransparency = 0.1
     button.AutoButtonColor = true
     button.Name = "DisableJumpButton"
@@ -39,26 +37,6 @@ if not button then
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(1, 0)
     corner.Parent = button
-
-    local uiStroke = Instance.new("UIStroke")
-    uiStroke.Color = button.BorderColor3
-    uiStroke.Thickness = 2
-    uiStroke.Transparency = 0.25
-    uiStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    uiStroke.Parent = button
-
-    -- Sombra
-    local shadow = Instance.new("ImageLabel")
-    shadow.Name = "Shadow"
-    shadow.BackgroundTransparency = 1
-    shadow.Image = "rbxassetid://1316045217"
-    shadow.ImageTransparency = 0.7
-    shadow.ScaleType = Enum.ScaleType.Slice
-    shadow.SliceCenter = Rect.new(10, 10, 118, 118)
-    shadow.Size = UDim2.new(1, 20, 1, 20)
-    shadow.Position = UDim2.new(0, -10, 0, -10)
-    shadow.ZIndex = 5
-    shadow.Parent = button
 end
 
 -- Restaurar posição salva
@@ -90,10 +68,10 @@ end
 -- Animação ao clicar
 local function animateClick()
     local clickTween = TweenService:Create(button, TweenInfo.new(0.1), {
-        Size = UDim2.new(0, 88, 0, 88)
+        Size = UDim2.new(0, 55, 0, 55)
     })
     local backTween = TweenService:Create(button, TweenInfo.new(0.1), {
-        Size = UDim2.new(0, 80, 0, 80)
+        Size = UDim2.new(0, 50, 0, 50)
     })
     clickTween:Play()
     clickTween.Completed:Connect(function()
@@ -112,7 +90,7 @@ button.MouseButton1Click:Connect(function()
     end
 end)
 
--- Animação ao arrastar
+-- Arrastar botão
 local dragging = false
 local dragInput, dragStart, startPos
 
@@ -132,14 +110,14 @@ end
 local function startDragEffect()
     TweenService:Create(button, TweenInfo.new(0.15), {
         BackgroundTransparency = 0.4,
-        Size = UDim2.new(0, 72, 0, 72)
+        Size = UDim2.new(0, 45, 0, 45)
     }):Play()
 end
 
 local function endDragEffect()
     TweenService:Create(button, TweenInfo.new(0.15), {
         BackgroundTransparency = 0.1,
-        Size = UDim2.new(0, 80, 0, 80)
+        Size = UDim2.new(0, 50, 0, 50)
     }):Play()
 end
 
@@ -171,8 +149,7 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Animação RGB lenta e suave (caveira + borda)
-local stroke = button:FindFirstChildWhichIsA("UIStroke")
+-- Animação RGB lenta para o emoji
 task.spawn(function()
     local t = 0
     while true do
@@ -182,10 +159,6 @@ task.spawn(function()
         local b = math.sin(t + 4) * 127 + 128
         local rgbColor = Color3.fromRGB(r, g, b)
         button.TextColor3 = rgbColor
-        button.BorderColor3 = rgbColor
-        if stroke then
-            stroke.Color = rgbColor
-        end
         task.wait(0.03)
     end
 end)
