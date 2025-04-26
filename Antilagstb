@@ -1,22 +1,43 @@
--- Script Anti-Lag Ultra Inteligente + Redução de Efeitos + Notificações
+-- Script Anti-Lag Turbo PRO com Botão Estiloso (Mudança de Cor)
 
 local workspace = game:GetService("Workspace")
+local lighting = game:GetService("Lighting")
 local StarterGui = game:GetService("StarterGui")
+local player = game:GetService("Players").LocalPlayer
+local terrain = workspace:FindFirstChildOfClass("Terrain")
+local TweenService = game:GetService("TweenService")
 
--- CONFIGURAÇÃO DE REDUÇÃO
--- Escolha: "leve", "medio", "pesado"
-local modoReducao = "medio"
+-- Cria GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AntilagTurboUI"
+screenGui.Parent = player:WaitForChild("PlayerGui")
+screenGui.ResetOnSpawn = false
 
--- Porcentagens baseadas na escolha
-local reducoes = {
-    ["leve"] = 0.7,
-    ["medio"] = 0.5,
-    ["pesado"] = 0.3
-}
+-- Cria Botão
+local button = Instance.new("TextButton")
+button.Parent = screenGui
+button.Size = UDim2.new(0, 110, 0, 50)
+button.Position = UDim2.new(0.05, 0, 0.05, 0)
+button.BackgroundColor3 = Color3.fromRGB(20, 20, 20) -- Começa preto
+button.BackgroundTransparency = 0.2
+button.BorderSizePixel = 0
+button.Text = "Antilag OFF"
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.Font = Enum.Font.GothamBold
+button.TextSize = 20
+button.Active = true
+button.Draggable = true
+button.AutoButtonColor = false
 
-local reducaoEscolhida = reducoes[modoReducao] or 0.5 -- padrão médio se escrever errado
+-- Arredonda o botão
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(1, 0)
+corner.Parent = button
 
--- MATERIAIS E NOMES DE PEDRAS
+-- Variável de Controle
+local AntilagAtivado = false
+
+-- Configurações para detectar pedras
 local materiaisPedra = {
     Enum.Material.Concrete,
     Enum.Material.Slate,
@@ -30,12 +51,11 @@ local nomesProvaveis = {
     "Rock", "Boulder", "Debris", "Stone", "GroundBreak", "ShatteredRock", "Chunk", "Rubble"
 }
 
--- Função para saber se foi criado recentemente
+-- Funções de limpeza
 local function criadoRecentemente(obj)
     return tick() - obj:GetDebugId() < 10
 end
 
--- Função para detectar pedra de combate
 local function ehPedraDeCombate(obj)
     if not obj:IsA("BasePart") then return false end
 
@@ -59,55 +79,11 @@ local function ehPedraDeCombate(obj)
     return false
 end
 
--- Função para reduzir efeitos
-local function reduzirEfeitos(obj)
-    if obj:IsA("ParticleEmitter") then
-        obj.Rate = obj.Rate * reducaoEscolhida
-        obj.Size = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, obj.Size.Keypoints[1].Value * reducaoEscolhida),
-            NumberSequenceKeypoint.new(1, obj.Size.Keypoints[#obj.Size.Keypoints].Value * reducaoEscolhida)
-        })
-        obj.Transparency = NumberSequence.new(0.7)
-        obj.LightEmission = 0
-    elseif obj:IsA("Beam") or obj:IsA("Trail") then
-        obj.Transparency = NumberSequence.new(0.7)
-        obj.LightEmission = 0
-        if obj.Width0 then obj.Width0 = obj.Width0 * reducaoEscolhida end
-        if obj.Width1 then obj.Width1 = obj.Width1 * reducaoEscolhida end
-    elseif obj:IsA("Smoke") or obj:IsA("Fire") then
-        obj.Opacity = 0.3
-        obj.Size = obj.Size * reducaoEscolhida
-    end
-end
-
--- Função geral para tratar objetos
-local function tratarObjeto(obj)
-    if ehPedraDeCombate(obj) then
+local function removerParticulas(obj)
+    if obj:IsA("ParticleEmitter") or obj:IsA("Smoke") or obj:IsA("Fire") then
         obj:Destroy()
-    else
-        reduzirEfeitos(obj)
     end
 end
 
--- Monitorar novos objetos
-workspace.DescendantAdded:Connect(function(obj)
-    task.defer(tratarObjeto, obj)
-end)
-
--- Tratar objetos existentes
-for _, obj in ipairs(workspace:GetDescendants()) do
-    tratarObjeto(obj)
-end
-
--- NOTIFICAÇÕES
-StarterGui:SetCore("SendNotification", {
-    Title = "AntiLag",
-    Text = "Anti-Lag Ativado!",
-    Duration = 3
-})
-
-StarterGui:SetCore("SendNotification", {
-    Title = "Redução de Efeitos",
-    Text = "Modo escolhido: " .. modoReducao,
-    Duration = 3
-})
+local function remover(obj)
+    if ehPedraDeCombate(obj) then
