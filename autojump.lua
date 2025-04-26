@@ -1,4 +1,4 @@
--- GUI: Caveira RGB sem sombra nem borda, tamanho 50x50, arrastável e com animação
+-- GUI: Bers3rk botão, arrastável, RGB no texto, sem borda, pulso suave
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
@@ -20,16 +20,16 @@ local button = screenGui:FindFirstChild("DisableJumpButton")
 if not button then
     button = Instance.new("TextButton")
     button.Parent = screenGui
-    button.Size = UDim2.new(0, 50, 0, 50)
-    button.Position = UDim2.new(0.5, -25, 0.5, -25)
+    button.Size = UDim2.new(0, 100, 0, 50) -- 100x50
+    button.Position = UDim2.new(0.5, -50, 0.5, -25)
     button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    button.Text = "☠️"
+    button.Text = "Bers3rk"
     button.TextColor3 = Color3.fromRGB(255, 255, 255)
     button.TextScaled = true
     button.Font = Enum.Font.Gotham
     button.BorderSizePixel = 0
     button.BackgroundTransparency = 0.1
-    button.AutoButtonColor = true
+    button.AutoButtonColor = false
     button.Name = "DisableJumpButton"
     button.ClipsDescendants = true
     button.ZIndex = 10
@@ -48,7 +48,7 @@ end
 
 -- Som de clique
 local clickSound = Instance.new("Sound")
-clickSound.SoundId = "rbxassetid://9118823101" -- som de clique suave
+clickSound.SoundId = "rbxassetid://9118823101"
 clickSound.Volume = 0.3
 clickSound.Parent = button
 
@@ -68,10 +68,10 @@ end
 -- Animação ao clicar
 local function animateClick()
     local clickTween = TweenService:Create(button, TweenInfo.new(0.1), {
-        Size = UDim2.new(0, 55, 0, 55)
+        Size = UDim2.new(0, 110, 0, 55)
     })
     local backTween = TweenService:Create(button, TweenInfo.new(0.1), {
-        Size = UDim2.new(0, 50, 0, 50)
+        Size = UDim2.new(0, 100, 0, 50)
     })
     clickTween:Play()
     clickTween.Completed:Connect(function()
@@ -110,14 +110,14 @@ end
 local function startDragEffect()
     TweenService:Create(button, TweenInfo.new(0.15), {
         BackgroundTransparency = 0.4,
-        Size = UDim2.new(0, 45, 0, 45)
+        Size = UDim2.new(0, 95, 0, 45)
     }):Play()
 end
 
 local function endDragEffect()
     TweenService:Create(button, TweenInfo.new(0.15), {
         BackgroundTransparency = 0.1,
-        Size = UDim2.new(0, 50, 0, 50)
+        Size = UDim2.new(0, 100, 0, 50)
     }):Play()
 end
 
@@ -149,7 +149,7 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Animação RGB lenta para o emoji
+-- Efeito RGB lento no texto "Bers3rk"
 task.spawn(function()
     local t = 0
     while true do
@@ -157,9 +157,37 @@ task.spawn(function()
         local r = math.sin(t) * 127 + 128
         local g = math.sin(t + 2) * 127 + 128
         local b = math.sin(t + 4) * 127 + 128
-        local rgbColor = Color3.fromRGB(r, g, b)
-        button.TextColor3 = rgbColor
+        button.TextColor3 = Color3.fromRGB(r, g, b)
         task.wait(0.03)
+    end
+end)
+
+-- Efeito de brilho ao passar o mouse/dedo
+button.MouseEnter:Connect(function()
+    TweenService:Create(button, TweenInfo.new(0.25), {
+        BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    }):Play()
+end)
+
+button.MouseLeave:Connect(function()
+    TweenService:Create(button, TweenInfo.new(0.25), {
+        BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    }):Play()
+end)
+
+-- Animação de pulso contínuo
+task.spawn(function()
+    while true do
+        local pulseOut = TweenService:Create(button, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 105, 0, 55)
+        })
+        local pulseIn = TweenService:Create(button, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {
+            Size = UDim2.new(0, 100, 0, 50)
+        })
+        pulseOut:Play()
+        pulseOut.Completed:Wait()
+        pulseIn:Play()
+        pulseIn.Completed:Wait()
     end
 end)
 
