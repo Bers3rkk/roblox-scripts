@@ -1,0 +1,247 @@
+-- Shader Hub Avançado com Arrastar (Mouse + Toque)
+
+if not game:IsLoaded() then game.Loaded:Wait() end
+local plr = game.Players.LocalPlayer
+local Lighting = game:GetService("Lighting")
+
+-- Arquivo de Config
+local configFile = "shader_config.json"
+local HttpService = game:GetService("HttpService")
+
+-- Estados padrão
+local shadersOn = true
+local reflectionOn = false
+local weatherType = nil
+local currentTime = "Tarde"
+local autoTime = true
+
+-- Função de salvar
+local function saveConfig()
+	local data = {
+		shadersOn = shadersOn,
+		reflectionOn = reflectionOn,
+		weatherType = weatherType,
+		currentTime = currentTime,
+		autoTime = autoTime
+	}
+	writefile(configFile, HttpService:JSONEncode(data))
+end
+
+-- Função de carregar
+local function loadConfig()
+	if isfile(configFile) then
+		local data = HttpService:JSONDecode(readfile(configFile))
+		shadersOn = data.shadersOn
+		reflectionOn = data.reflectionOn
+		weatherType = data.weatherType
+		currentTime = data.currentTime or "Tarde"
+		autoTime = data.autoTime or true
+	end
+end
+
+-- GUI
+local gui = Instance.new("ScreenGui", plr:WaitForChild("PlayerGui"))
+gui.Name = "ShaderGUI"
+gui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 240, 0, 480)
+frame.Position = UDim2.new(0, 20, 0.5, -240)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+frame.Selectable = true
+frame.MouseEnter:Connect(function()
+	frame:TweenSize(UDim2.new(0, 240, 0, 480), "Out", "Quad", 0.2)
+end)
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 35)
+title.Text = "Shader Hub Avançado"
+title.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+title.TextColor3 = Color3.new(1, 1, 1)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 20
+
+-- Tempos do dia
+local times = {
+	["Manhã"] = {
+		timeOfDay = "07:00:00",
+		skyId = "rbxassetid://151249144",
+		ambient = Color3.fromRGB(180, 180, 200),
+		outdoor = Color3.fromRGB(255, 255, 255)
+	},
+	["Tarde"] = {
+		timeOfDay = "14:00:00",
+		skyId = "rbxassetid://159454299",
+		ambient = Color3.fromRGB(200, 200, 200),
+		outdoor = Color3.fromRGB(255, 255, 255)
+	},
+	["Pôr do Sol"] = {
+		timeOfDay = "18:30:00",
+		skyId = "rbxassetid://160050192",
+		ambient = Color3.fromRGB(255, 180, 130),
+		outdoor = Color3.fromRGB(255, 180, 150)
+	},
+	["Noite"] = {
+		timeOfDay = "22:00:00",
+		skyId = "rbxassetid://149513510",
+		ambient = Color3.fromRGB(40, 40, 60),
+		outdoor = Color3.fromRGB(80, 80, 100)
+	}
+}
+
+-- Limpa shaders e clima
+local function clearShader()
+	for _, obj in ipairs(Lighting:GetChildren()) do
+		if obj:IsA("Sky") or obj:IsA("Reflection") or obj.Name == "WeatherEffect" then
+			obj:Destroy()
+		end
+	end
+	Lighting.FogEnd = 100000
+end
+
+-- Cria partículas
+local function createParticle(texture, rate, lifetime)
+	local part = Instance.new("ParticleEmitter")
+	part.Name = "WeatherEffect"
+	part.Texture = texture
+	part.Rate = rate
+	part.Lifetime = NumberRange.new(lifetime)
+	part.Speed = NumberRange.new(5)
+	part.VelocitySpread = 180
+	part.LightInfluence = 0
+
+	local att = Instance.new("Attachment", workspace.Terrain)
+	part.Parent = att
+end
+
+-- Aplica shaders
+local function applyShader(name)
+	if not shadersOn then return end
+	local setting = times[name]
+	if setting then
+		clearShader()
+		currentTime = name
+
+		local sky = Instance.new("Sky", Lighting)
+		for _, prop in pairs({"SkyboxBk", "SkyboxDn", "SkyboxFt", "SkyboxLf", "SkyboxRt", "SkyboxUp"}) do
+			sky[prop] = setting.skyId
+		end
+
+		Lighting.TimeOfDay = setting.timeOfDay
+		Lighting.Ambient = setting.ambient
+		Lighting.OutdoorAmbient = setting.outdoor
+
+		if reflectionOn then
+			local refl = Instance.new("Reflection", Lighting)
+			refl.Intensity = 0.3
+		end
+
+		if weatherType == "Chuva" then
+			createParticle("rbxassetid://484289250", 100, 1)
+		elseif weatherType == "Neve" then
+			createParticle("rbxassetid://6296787499", 50, 2)
+		elseif weatherType == "Neblina" then
+			Lighting.FogStart = 0
+			Lighting.FogEnd = 200
+			Lighting.FogColor = Color3.fromRGB(200, 200, 200)
+		end
+	end
+	saveConfig()
+end
+
+-- Botão UI
+local function createButton(text, y, callback)
+	local btn = Instance.new("TextButton", frame)
+	btn.Size = UDim2.new(1, -20, 0, 35)
+	btn.Position = UDim2.new(0, 10, 0, y)
+	btn.Text = text
+	btn.TextColor3 = Color3.new(1, 1, 1)
+	btn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+	btn.Font = Enum.Font.Gotham
+	btn.TextSize = 16
+	btn.MouseButton1Click:Connect(callback)
+	return btn
+end
+
+-- Botões principais
+local y = 45
+local shaderBtn = createButton("Shaders: ON", y, function()
+	shadersOn = not shadersOn
+	if not shadersOn then clearShader() end
+	shaderBtn.Text = shadersOn and "Shaders: ON" or "Shaders: OFF"
+	applyShader(currentTime)
+end)
+
+y = y + 40
+local reflBtn = createButton("Reflexo: OFF", y, function()
+	reflectionOn = not reflectionOn
+	reflBtn.Text = reflectionOn and "Reflexo: ON" or "Reflexo: OFF"
+	applyShader(currentTime)
+end)
+
+-- Botões de tempo
+for nome, _ in pairs(times) do
+	y = y + 40
+	createButton(nome, y, function()
+		currentTime = nome
+		applyShader(nome)
+	end)
+end
+
+-- Botões de clima
+y = y + 40
+createButton("Chuva", y, function()
+	weatherType = "Chuva"
+	applyShader(currentTime)
+end)
+
+y = y + 40
+createButton("Neve", y, function()
+	weatherType = "Neve"
+	applyShader(currentTime)
+end)
+
+y = y + 40
+createButton("Neblina", y, function()
+	weatherType = "Neblina"
+	applyShader(currentTime)
+end)
+
+y = y + 40
+createButton("Limpar Clima", y, function()
+	weatherType = nil
+	applyShader(currentTime)
+end)
+
+-- Botão de alternância automática de tempo
+y = y + 40
+local autoTimeBtn = createButton("Ciclo Automático: ON", y, function()
+	autoTime = not autoTime
+	autoTimeBtn.Text = autoTime and "Ciclo Automático: ON" or "Ciclo Automático: OFF"
+	saveConfig()
+end)
+
+-- Função de alternância de tempo do dia (automático)
+local function autoCycle()
+	while autoTime do
+		for name, _ in pairs(times) do
+			wait(10)
+			if autoTime then
+				applyShader(name)
+			end
+		end
+	end
+end
+
+-- Iniciar ciclo automático de tempo
+spawn(autoCycle)
+
+-- Carrega configs salvas
+loadConfig()
+applyShader(currentTime)
+shaderBtn.Text = shadersOn and "Shaders: ON" or "Shaders: OFF"
+reflBtn.Text = reflectionOn and "Reflexo: ON" or "Reflexo: OFF"
+autoTimeBtn.Text = autoTime and "Ciclo Automático: ON" or "Ciclo Automático: OFF"
