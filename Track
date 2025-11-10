@@ -1,0 +1,558 @@
+-- LocalScript in StarterPlayerScripts
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local PathfindingService = game:GetService("PathfindingService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Create main GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FlyControlGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- Main container frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 350, 0, 550) -- Adjusted height for new button layout
+mainFrame.Position = UDim2.new(0, 20, 0.5, -275)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+mainFrame.BackgroundTransparency = 0.05
+mainFrame.BorderSizePixel = 0
+mainFrame.ClipsDescendants = true
+
+-- Modern gradient effect
+local gradient = Instance.new("UIGradient")
+gradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 40, 50)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 30, 40))
+})
+gradient.Rotation = 90
+gradient.Parent = mainFrame
+
+-- Corner radius
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 15)
+corner.Parent = mainFrame
+
+-- Title bar
+local titleBar = Instance.new("Frame")
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 45)
+titleBar.Position = UDim2.new(0, 0, 0, 0)
+titleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+titleBar.BorderSizePixel = 0
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 15)
+titleCorner.Parent = titleBar
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "TitleLabel"
+titleLabel.Size = UDim2.new(1, -50, 1, 0)
+titleLabel.Position = UDim2.new(0, 15, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "MOVEMENT CONTROL SYSTEM"
+titleLabel.TextColor3 = Color3.fromRGB(220, 220, 255)
+titleLabel.TextSize = 18
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = titleBar
+
+-- Close button (X)
+local closeButton = Instance.new("TextButton")
+closeButton.Name = "CloseButton"
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -35, 0.5, -15)
+closeButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextSize = 18
+closeButton.Font = Enum.Font.GothamBold
+closeButton.ZIndex = 2
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 8)
+closeCorner.Parent = closeButton
+
+closeButton.Parent = titleBar
+
+-- Content container
+local contentFrame = Instance.new("Frame")
+contentFrame.Name = "ContentFrame"
+contentFrame.Size = UDim2.new(1, -20, 1, -55)
+contentFrame.Position = UDim2.new(0, 10, 0, 50)
+contentFrame.BackgroundTransparency = 1
+contentFrame.Parent = mainFrame
+
+-- Status indicator
+local statusContainer = Instance.new("Frame")
+statusContainer.Name = "StatusContainer"
+statusContainer.Size = UDim2.new(1, 0, 0, 60)
+statusContainer.Position = UDim2.new(0, 0, 0, 0)
+statusContainer.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+statusContainer.BorderSizePixel = 0
+
+local statusCorner = Instance.new("UICorner")
+statusCorner.CornerRadius = UDim.new(0, 10)
+statusCorner.Parent = statusContainer
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Name = "StatusLabel"
+statusLabel.Size = UDim2.new(0.5, -5, 0.5, 0)
+statusLabel.Position = UDim2.new(0, 10, 0, 5)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "MOVEMENT STATUS:"
+statusLabel.TextColor3 = Color3.fromRGB(180, 180, 200)
+statusLabel.TextSize = 14
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+statusLabel.Parent = statusContainer
+
+local statusValue = Instance.new("TextLabel")
+statusValue.Name = "StatusValue"
+statusValue.Size = UDim2.new(0.5, -5, 0.5, 0)
+statusValue.Position = UDim2.new(0.5, 0, 0, 5)
+statusValue.BackgroundTransparency = 1
+statusValue.Text = "INACTIVE"
+statusValue.TextColor3 = Color3.fromRGB(255, 80, 80)
+statusValue.TextSize = 14
+statusValue.Font = Enum.Font.GothamBold
+statusValue.TextXAlignment = Enum.TextXAlignment.Right
+statusValue.Parent = statusContainer
+
+local statusSubLabel = Instance.new("TextLabel")
+statusSubLabel.Name = "StatusSubLabel"
+statusSubLabel.Size = UDim2.new(1, -20, 0.5, 0)
+statusSubLabel.Position = UDim2.new(0, 10, 0.5, 0)
+statusSubLabel.BackgroundTransparency = 1
+statusSubLabel.Text = "Hold hotkey to activate movement"
+statusSubLabel.TextColor3 = Color3.fromRGB(120, 120, 140)
+statusSubLabel.TextSize = 12
+statusSubLabel.Font = Enum.Font.Gotham
+statusSubLabel.TextXAlignment = Enum.TextXAlignment.Left
+statusSubLabel.Parent = statusContainer
+
+statusContainer.Parent = contentFrame
+
+-- Speed control section
+local speedContainer = Instance.new("Frame")
+speedContainer.Name = "SpeedContainer"
+speedContainer.Size = UDim2.new(1, 0, 0, 90)
+speedContainer.Position = UDim2.new(0, 0, 0, 70)
+speedContainer.BackgroundTransparency = 1
+speedContainer.Parent = contentFrame
+
+local speedHeader = Instance.new("TextLabel")
+speedHeader.Name = "SpeedHeader"
+speedHeader.Size = UDim2.new(1, 0, 0, 25)
+speedHeader.Position = UDim2.new(0, 0, 0, 0)
+speedHeader.BackgroundTransparency = 1
+speedHeader.Text = "SPEED CONTROL"
+speedHeader.TextColor3 = Color3.fromRGB(180, 180, 200)
+speedHeader.TextSize = 14
+speedHeader.Font = Enum.Font.GothamBold
+speedHeader.TextXAlignment = Enum.TextXAlignment.Left
+speedHeader.Parent = speedContainer
+
+local speedValueContainer = Instance.new("Frame")
+speedValueContainer.Name = "SpeedValueContainer"
+speedValueContainer.Size = UDim2.new(1, 0, 0, 25)
+speedValueContainer.Position = UDim2.new(0, 0, 0, 25)
+speedValueContainer.BackgroundTransparency = 1
+
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Name = "SpeedLabel"
+speedLabel.Size = UDim2.new(0.5, 0, 1, 0)
+speedLabel.Position = UDim2.new(0, 0, 0, 0)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Current Speed:"
+speedLabel.TextColor3 = Color3.fromRGB(180, 180, 200)
+speedLabel.TextSize = 13
+speedLabel.Font = Enum.Font.Gotham
+speedLabel.TextXAlignment = Enum.TextXAlignment.Left
+speedLabel.Parent = speedValueContainer
+
+local speedValue = Instance.new("TextLabel")
+speedValue.Name = "SpeedValue"
+speedValue.Size = UDim2.new(0.5, 0, 1, 0)
+speedValue.Position = UDim2.new(0.5, 0, 0, 0)
+speedValue.BackgroundTransparency = 1
+speedValue.Text = "50"
+speedValue.TextColor3 = Color3.fromRGB(100, 200, 255)
+speedValue.TextSize = 16
+speedValue.Font = Enum.Font.GothamBold
+speedValue.TextXAlignment = Enum.TextXAlignment.Right
+speedValue.Parent = speedValueContainer
+
+speedValueContainer.Parent = speedContainer
+
+-- Speed slider
+local speedSliderContainer = Instance.new("Frame")
+speedSliderContainer.Name = "SpeedSliderContainer"
+speedSliderContainer.Size = UDim2.new(1, 0, 0, 30)
+speedSliderContainer.Position = UDim2.new(0, 0, 0, 55)
+speedSliderContainer.BackgroundTransparency = 1
+
+local speedSliderBackground = Instance.new("Frame")
+speedSliderBackground.Name = "SpeedSliderBackground"
+speedSliderBackground.Size = UDim2.new(1, 0, 0, 8)
+speedSliderBackground.Position = UDim2.new(0, 0, 0.5, -4)
+speedSliderBackground.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+speedSliderBackground.BorderSizePixel = 0
+
+local sliderCorner = Instance.new("UICorner")
+sliderCorner.CornerRadius = UDim.new(1, 0)
+sliderCorner.Parent = speedSliderBackground
+
+local speedSliderFill = Instance.new("Frame")
+speedSliderFill.Name = "SpeedSliderFill"
+speedSliderFill.Size = UDim2.new(0.5, 0, 1, 0)
+speedSliderFill.Position = UDim2.new(0, 0, 0, 0)
+speedSliderFill.BackgroundColor3 = Color3.fromRGB(80, 160, 255)
+speedSliderFill.BorderSizePixel = 0
+
+local fillCorner = Instance.new("UICorner")
+fillCorner.CornerRadius = UDim.new(1, 0)
+fillCorner.Parent = speedSliderFill
+
+local speedSliderButton = Instance.new("TextButton")
+speedSliderButton.Name = "SpeedSliderButton"
+speedSliderButton.Size = UDim2.new(0, 24, 0, 24)
+speedSliderButton.Position = UDim2.new(0.5, -12, 0.5, -12)
+speedSliderButton.BackgroundColor3 = Color3.fromRGB(240, 240, 255)
+speedSliderButton.Text = ""
+speedSliderButton.AutoButtonColor = false
+
+local buttonCorner = Instance.new("UICorner")
+buttonCorner.CornerRadius = UDim.new(1, 0)
+buttonCorner.Parent = speedSliderButton
+
+speedSliderFill.Parent = speedSliderBackground
+speedSliderButton.Parent = speedSliderContainer
+speedSliderBackground.Parent = speedSliderContainer
+speedSliderContainer.Parent = speedContainer
+
+-- Hotkey section
+local hotkeyContainer = Instance.new("Frame")
+hotkeyContainer.Name = "HotkeyContainer"
+hotkeyContainer.Size = UDim2.new(1, 0, 0, 60)
+hotkeyContainer.Position = UDim2.new(0, 0, 0, 170)
+hotkeyContainer.BackgroundTransparency = 1
+hotkeyContainer.Parent = contentFrame
+
+local hotkeyHeader = Instance.new("TextLabel")
+hotkeyHeader.Name = "HotkeyHeader"
+hotkeyHeader.Size = UDim2.new(1, 0, 0, 25)
+hotkeyHeader.Position = UDim2.new(0, 0, 0, 0)
+hotkeyHeader.BackgroundTransparency = 1
+hotkeyHeader.Text = "CONTROL HOTKEY"
+hotkeyHeader.TextColor3 = Color3.fromRGB(180, 180, 200)
+hotkeyHeader.TextSize = 14
+hotkeyHeader.Font = Enum.Font.GothamBold
+hotkeyHeader.TextXAlignment = Enum.TextXAlignment.Left
+hotkeyHeader.Parent = hotkeyContainer
+
+local hotkeyButtonContainer = Instance.new("Frame")
+hotkeyButtonContainer.Name = "HotkeyButtonContainer"
+hotkeyButtonContainer.Size = UDim2.new(1, 0, 0, 35)
+hotkeyButtonContainer.Position = UDim2.new(0, 0, 0, 25)
+hotkeyButtonContainer.BackgroundTransparency = 1
+
+local hotkeyLabel = Instance.new("TextLabel")
+hotkeyLabel.Name = "HotkeyLabel"
+hotkeyLabel.Size = UDim2.new(0.5, -5, 1, 0)
+hotkeyLabel.Position = UDim2.new(0, 0, 0, 0)
+hotkeyLabel.BackgroundTransparency = 1
+hotkeyLabel.Text = "Movement Hotkey:"
+hotkeyLabel.TextColor3 = Color3.fromRGB(180, 180, 200)
+hotkeyLabel.TextSize = 13
+hotkeyLabel.Font = Enum.Font.Gotham
+hotkeyLabel.TextXAlignment = Enum.TextXAlignment.Left
+hotkeyLabel.Parent = hotkeyButtonContainer
+
+local hotkeyButton = Instance.new("TextButton")
+hotkeyButton.Name = "HotkeyButton"
+hotkeyButton.Size = UDim2.new(0.5, -5, 1, 0)
+hotkeyButton.Position = UDim2.new(0.5, 0, 0, 0)
+hotkeyButton.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+hotkeyButton.Text = "E"
+hotkeyButton.TextColor3 = Color3.fromRGB(220, 220, 255)
+hotkeyButton.TextSize = 14
+hotkeyButton.Font = Enum.Font.GothamBold
+
+local hotkeyCorner = Instance.new("UICorner")
+hotkeyCorner.CornerRadius = UDim.new(0, 8)
+hotkeyCorner.Parent = hotkeyButton
+
+hotkeyButton.Parent = hotkeyButtonContainer
+hotkeyButtonContainer.Parent = hotkeyContainer
+
+-- Auto-Track section
+local trackContainer = Instance.new("Frame")
+trackContainer.Name = "TrackContainer"
+trackContainer.Size = UDim2.new(1, 0, 0, 90)
+trackContainer.Position = UDim2.new(0, 0, 0, 240)
+trackContainer.BackgroundTransparency = 1
+trackContainer.Parent = contentFrame
+
+local trackHeader = Instance.new("TextLabel")
+trackHeader.Name = "TrackHeader"
+trackHeader.Size = UDim2.new(1, 0, 0, 25)
+trackHeader.Position = UDim2.new(0, 0, 0, 0)
+trackHeader.BackgroundTransparency = 1
+trackHeader.Text = "AUTO-TRACK SYSTEM"
+trackHeader.TextColor3 = Color3.fromRGB(180, 180, 200)
+trackHeader.TextSize = 14
+trackHeader.Font = Enum.Font.GothamBold
+trackHeader.TextXAlignment = Enum.TextXAlignment.Left
+trackHeader.Parent = trackContainer
+
+local trackStatusContainer = Instance.new("Frame")
+trackStatusContainer.Name = "TrackStatusContainer"
+trackStatusContainer.Size = UDim2.new(1, 0, 0, 25)
+trackStatusContainer.Position = UDim2.new(0, 0, 0, 25)
+trackStatusContainer.BackgroundTransparency = 1
+
+local trackLabel = Instance.new("TextLabel")
+trackLabel.Name = "TrackLabel"
+trackLabel.Size = UDim2.new(0.5, -5, 1, 0)
+trackLabel.Position = UDim2.new(0, 0, 0, 0)
+trackLabel.BackgroundTransparency = 1
+trackLabel.Text = "Auto-Track:"
+trackLabel.TextColor3 = Color3.fromRGB(180, 180, 200)
+trackLabel.TextSize = 13
+trackLabel.Font = Enum.Font.Gotham
+trackLabel.TextXAlignment = Enum.TextXAlignment.Left
+trackLabel.Parent = trackStatusContainer
+
+local trackButton = Instance.new("TextButton")
+trackButton.Name = "TrackButton"
+trackButton.Size = UDim2.new(0.5, -5, 1, 0)
+trackButton.Position = UDim2.new(0.5, 0, 0, 0)
+trackButton.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
+trackButton.Text = "OFF"
+trackButton.TextColor3 = Color3.fromRGB(255, 200, 200)
+trackButton.TextSize = 14
+trackButton.Font = Enum.Font.GothamBold
+
+local trackCorner = Instance.new("UICorner")
+trackCorner.CornerRadius = UDim.new(0, 8)
+trackCorner.Parent = trackButton
+
+trackButton.Parent = trackStatusContainer
+trackStatusContainer.Parent = trackContainer
+
+local trackStatus = Instance.new("TextLabel")
+trackStatus.Name = "TrackStatus"
+trackStatus.Size = UDim2.new(1, 0, 0, 20)
+trackStatus.Position = UDim2.new(0, 0, 0, 55)
+trackStatus.BackgroundTransparency = 1
+trackStatus.Text = "Click to toggle automatic target tracking"
+trackStatus.TextColor3 = Color3.fromRGB(120, 120, 140)
+trackStatus.TextSize = 11
+trackStatus.Font = Enum.Font.Gotham
+trackStatus.TextXAlignment = Enum.TextXAlignment.Left
+trackStatus.Parent = trackContainer
+
+-- ESP section
+local espContainer = Instance.new("Frame")
+espContainer.Name = "ESPContainer"
+espContainer.Size = UDim2.new(1, 0, 0, 90)
+espContainer.Position = UDim2.new(0, 0, 0, 340)
+espContainer.BackgroundTransparency = 1
+espContainer.Parent = contentFrame
+
+local espHeader = Instance.new("TextLabel")
+espHeader.Name = "ESPHeader"
+espHeader.Size = UDim2.new(1, 0, 0, 25)
+espHeader.Position = UDim2.new(0, 0, 0, 0)
+espHeader.BackgroundTransparency = 1
+espHeader.Text = "ESP SYSTEM"
+espHeader.TextColor3 = Color3.fromRGB(180, 180, 200)
+espHeader.TextSize = 14
+espHeader.Font = Enum.Font.GothamBold
+espHeader.TextXAlignment = Enum.TextXAlignment.Left
+espHeader.Parent = espContainer
+
+local espStatusContainer = Instance.new("Frame")
+espStatusContainer.Name = "ESPStatusContainer"
+espStatusContainer.Size = UDim2.new(1, 0, 0, 25)
+espStatusContainer.Position = UDim2.new(0, 0, 0, 25)
+espStatusContainer.BackgroundTransparency = 1
+
+local espLabel = Instance.new("TextLabel")
+espLabel.Name = "ESPLabel"
+espLabel.Size = UDim2.new(0.5, -5, 1, 0)
+espLabel.Position = UDim2.new(0, 0, 0, 0)
+espLabel.BackgroundTransparency = 1
+espLabel.Text = "Player ESP:"
+espLabel.TextColor3 = Color3.fromRGB(180, 180, 200)
+espLabel.TextSize = 13
+espLabel.Font = Enum.Font.Gotham
+espLabel.TextXAlignment = Enum.TextXAlignment.Left
+espLabel.Parent = espStatusContainer
+
+local espButton = Instance.new("TextButton")
+espButton.Name = "ESPButton"
+espButton.Size = UDim2.new(0.5, -5, 1, 0)
+espButton.Position = UDim2.new(0.5, 0, 0, 0)
+espButton.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
+espButton.Text = "OFF"
+espButton.TextColor3 = Color3.fromRGB(255, 200, 200)
+espButton.TextSize = 14
+espButton.Font = Enum.Font.GothamBold
+
+local espCorner = Instance.new("UICorner")
+espCorner.CornerRadius = UDim.new(0, 8)
+espCorner.Parent = espButton
+
+espButton.Parent = espStatusContainer
+espStatusContainer.Parent = espContainer
+
+local espStatus = Instance.new("TextLabel")
+espStatus.Name = "ESPStatus"
+espStatus.Size = UDim2.new(1, 0, 0, 20)
+espStatus.Position = UDim2.new(0, 0, 0, 55)
+espStatus.BackgroundTransparency = 1
+espStatus.Text = "Click to toggle player name ESP through walls"
+espStatus.TextColor3 = Color3.fromRGB(120, 120, 140)
+espStatus.TextSize = 11
+espStatus.Font = Enum.Font.Gotham
+espStatus.TextXAlignment = Enum.TextXAlignment.Left
+espStatus.Parent = espContainer
+
+-- MOBILE FLY section
+local mobileContainer = Instance.new("Frame")
+mobileContainer.Name = "MobileContainer"
+mobileContainer.Size = UDim2.new(1, 0, 0, 90)
+mobileContainer.Position = UDim2.new(0, 0, 0, 440)
+mobileContainer.BackgroundTransparency = 1
+mobileContainer.Parent = contentFrame
+
+local mobileHeader = Instance.new("TextLabel")
+mobileHeader.Name = "MobileHeader"
+mobileHeader.Size = UDim2.new(1, 0, 0, 25)
+mobileHeader.Position = UDim2.new(0, 0, 0, 0)
+mobileHeader.BackgroundTransparency = 1
+mobileHeader.Text = "MOBILE FLY"
+mobileHeader.TextColor3 = Color3.fromRGB(180, 180, 200)
+mobileHeader.TextSize = 14
+mobileHeader.Font = Enum.Font.GothamBold
+mobileHeader.TextXAlignment = Enum.TextXAlignment.Left
+mobileHeader.Parent = mobileContainer
+
+local mobileStatusContainer = Instance.new("Frame")
+mobileStatusContainer.Name = "MobileStatusContainer"
+mobileStatusContainer.Size = UDim2.new(1, 0, 0, 25)
+mobileStatusContainer.Position = UDim2.new(0, 0, 0, 25)
+mobileStatusContainer.BackgroundTransparency = 1
+
+local mobileLabel = Instance.new("TextLabel")
+mobileLabel.Name = "MobileLabel"
+mobileLabel.Size = UDim2.new(0.5, -5, 1, 0)
+mobileLabel.Position = UDim2.new(0, 0, 0, 0)
+mobileLabel.BackgroundTransparency = 1
+mobileLabel.Text = "Hold to Fly:"
+mobileLabel.TextColor3 = Color3.fromRGB(180, 180, 200)
+mobileLabel.TextSize = 13
+mobileLabel.Font = Enum.Font.Gotham
+mobileLabel.TextXAlignment = Enum.TextXAlignment.Left
+mobileLabel.Parent = mobileStatusContainer
+
+local mobileButton = Instance.new("TextButton")
+mobileButton.Name = "MobileButton"
+mobileButton.Size = UDim2.new(0.5, -5, 1, 0)
+mobileButton.Position = UDim2.new(0.5, 0, 0, 0)
+mobileButton.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
+mobileButton.Text = "OFF"
+mobileButton.TextColor3 = Color3.fromRGB(255, 200, 200)
+mobileButton.TextSize = 14
+mobileButton.Font = Enum.Font.GothamBold
+
+local mobileCorner = Instance.new("UICorner")
+mobileCorner.CornerRadius = UDim.new(0, 8)
+mobileCorner.Parent = mobileButton
+
+mobileButton.Parent = mobileStatusContainer
+mobileStatusContainer.Parent = mobileContainer
+
+local mobileStatus = Instance.new("TextLabel")
+mobileStatus.Name = "MobileStatus"
+mobileStatus.Size = UDim2.new(1, 0, 0, 20)
+mobileStatus.Position = UDim2.new(0, 0, 0, 55)
+mobileStatus.BackgroundTransparency = 1
+mobileStatus.Text = "Hold mobile button to fly in camera direction"
+mobileStatus.TextColor3 = Color3.fromRGB(120, 120, 140)
+mobileStatus.TextSize = 11
+mobileStatus.Font = Enum.Font.Gotham
+mobileStatus.TextXAlignment = Enum.TextXAlignment.Left
+mobileStatus.Parent = mobileContainer
+
+mainFrame.Parent = screenGui
+
+-- Movement system variables
+local character, humanoid, rootPart
+local isMoving = false
+local moveSpeed = 50
+local currentHotkey = Enum.KeyCode.E
+local mouse = player:GetMouse()
+
+-- Auto-track variables
+local autoTrackEnabled = false
+local targetModel = nil
+local timeAtTarget = 0
+local reachedTarget = false
+local TARGET_REACH_DISTANCE = 3
+local TARGET_STAY_TIME = 2
+local autoTrackConnection = nil
+local currentPath = nil
+local waypoints = {}
+local currentWaypointIndex = 1
+
+-- ESP system variables
+local espEnabled = false
+local espConnections = {}
+local espGuis = {} -- Store ESP GUI elements
+
+-- Mobile fly variables
+local mobileFlyEnabled = false
+local mobileFlyConnection = nil
+local bodyGyro = nil
+local bodyVelocity = nil
+local mobileFlySpeed = 42
+
+-- Anti-teleport system
+local lastValidPosition = nil
+local movementHistory = {}
+local MAX_HISTORY = 10
+
+-- Function to update GUI status
+local function updateGUI()
+    if isMoving then
+        statusValue.Text = "ACTIVE"
+        statusValue.TextColor3 = Color3.fromRGB(80, 255, 80)
+        statusSubLabel.Text = "Moving towards " .. (autoTrackEnabled and "target" or "mouse position")
+    else
+        statusValue.Text = "INACTIVE"
+        statusValue.TextColor3 = Color3.fromRGB(255, 80, 80)
+        statusSubLabel.Text = "Hold " .. currentHotkey.Name .. " to activate movement"
+    end
+    
+    speedValue.Text = tostring(math.floor(moveSpeed))
+    
+    -- Update slider position
+    local fillWidth = math.clamp((moveSpeed - 10) / 90, 0, 1)
+    speedSliderFill.Size = UDim2.new(fillWidth, 0, 1, 0)
+    speedSliderButton.Position = UDim2.new(fillWidth, -12, 0.5, -12)
+    
+    -- Update track button
+    if autoTrackEnabled then
+        trackButton.Text = "ON"
+        trackButton.TextColor3 = Color3.fromRGB(200, 255, 200)
+        trackButton.BackgroundColor3 = Color3.fromRGB(80, 180, 80)
+        
+        if targetModel
