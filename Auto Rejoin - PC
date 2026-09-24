@@ -1,0 +1,960 @@
+--[[
+    Rejoin Auto — Fixed Drag + Live Time
+]]
+
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local CoreGui = game:GetService("CoreGui")
+local Stats = game:GetService("Stats")
+local RunService = game:GetService("RunService")
+local VirtualUser = game:GetService("VirtualUser")
+
+local LocalPlayer = Players.LocalPlayer
+local PlaceId = game.PlaceId
+local JobId = game.JobId
+
+local CONFIG_FILE = "RejoinAuto_Config.json"
+
+local Themes = {
+    Dark = {
+        Bg = Color3.fromRGB(16, 16, 18),
+        Stroke = Color3.fromRGB(50, 50, 55),
+        Text = Color3.fromRGB(200, 200, 205),
+        SubText = Color3.fromRGB(145, 145, 150),
+        Button = Color3.fromRGB(28, 28, 32),
+        Accent = Color3.fromRGB(36, 36, 40),
+        TabActive = Color3.fromRGB(45, 45, 50),
+        TabInactive = Color3.fromRGB(22, 22, 26)
+    },
+    Light = {
+        Bg = Color3.fromRGB(245, 245, 247),
+        Stroke = Color3.fromRGB(190, 190, 195),
+        Text = Color3.fromRGB(25, 25, 30),
+        SubText = Color3.fromRGB(90, 90, 95),
+        Button = Color3.fromRGB(225, 225, 230),
+        Accent = Color3.fromRGB(210, 210, 215),
+        TabActive = Color3.fromRGB(200, 200, 205),
+        TabInactive = Color3.fromRGB(235, 235, 240)
+    },
+    Midnight = {
+        Bg = Color3.fromRGB(12, 14, 22),
+        Stroke = Color3.fromRGB(40, 50, 80),
+        Text = Color3.fromRGB(180, 200, 255),
+        SubText = Color3.fromRGB(120, 140, 180),
+        Button = Color3.fromRGB(22, 26, 40),
+        Accent = Color3.fromRGB(28, 34, 50),
+        TabActive = Color3.fromRGB(35, 45, 70),
+        TabInactive = Color3.fromRGB(16, 20, 30)
+    },
+    Ember = {
+        Bg = Color3.fromRGB(22, 15, 14),
+        Stroke = Color3.fromRGB(80, 40, 35),
+        Text = Color3.fromRGB(255, 200, 180),
+        SubText = Color3.fromRGB(180, 130, 110),
+        Button = Color3.fromRGB(35, 24, 22),
+        Accent = Color3.fromRGB(45, 30, 26),
+        TabActive = Color3.fromRGB(60, 38, 34),
+        TabInactive = Color3.fromRGB(26, 18, 16)
+    },
+    Forest = {
+        Bg = Color3.fromRGB(14, 20, 16),
+        Stroke = Color3.fromRGB(40, 70, 50),
+        Text = Color3.fromRGB(180, 230, 190),
+        SubText = Color3.fromRGB(120, 160, 130),
+        Button = Color3.fromRGB(22, 32, 26),
+        Accent = Color3.fromRGB(28, 40, 32),
+        TabActive = Color3.fromRGB(35, 55, 42),
+        TabInactive = Color3.fromRGB(16, 24, 18)
+    }
+}
+
+local Config = {
+    KeyCode = "R",
+    KeyType = "KeyCode",
+    ToggleKey = "RightControl",
+    ToggleType = "KeyCode",
+    Hidden = false,
+    Delay = 1,
+    AntiAFK = false,
+    FloatStats = false,
+    FloatSize = 2,
+    StatsColor = {R = 140, G = 140, B = 145},
+    Theme = "Dark",
+    AutoMinimize = true,
+    AutoMinimizeTime = 10,
+    Favorites = {},
+    MainPos = {X = 1, Y = 0.5, XOff = -400, YOff = -280},
+    MiniPos = {X = 1, Y = 0.5, XOff = -52, YOff = -20},
+    FloatPos = {X = 0, Y = 0, XOff = 20, YOff = 20}
+}
+
+local function SaveConfig()
+    if writefile then
+        pcall(function()
+            writefile(CONFIG_FILE, HttpService:JSONEncode(Config))
+        end)
+    end
+end
+
+local function LoadConfig()
+    if isfile and readfile and isfile(CONFIG_FILE) then
+        local ok, data = pcall(function()
+            return HttpService:JSONDecode(readfile(CONFIG_FILE))
+        end)
+        if ok and type(data) == "table" then
+            for k, v in pairs(data) do Config[k] = v end
+        end
+    end
+end
+LoadConfig()
+
+local T = Themes[Config.Theme] or Themes.Dark
+
+local function Notify(text, duration)
+    duration = duration or 2.2
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "RejoinAutoNotify"
+    gui.ResetOnSpawn = false
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    pcall(function() gui.Parent = CoreGui end)
+    if not gui.Parent then gui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 260, 0, 42)
+    frame.Position = UDim2.new(1, 20, 0, 18)
+    frame.BackgroundColor3 = T.Bg
+    frame.BorderSizePixel = 0
+    frame.Parent = gui
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+    local s = Instance.new("UIStroke")
+    s.Color = T.Stroke
+    s.Thickness = 1.2
+    s.Parent = frame
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -16, 1, 0)
+    label.Position = UDim2.new(0, 10, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = T.Text
+    label.Font = Enum.Font.GothamMedium
+    label.TextSize = 13
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = frame
+
+    TweenService:Create(frame, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {
+        Position = UDim2.new(1, -280, 0, 18)
+    }):Play()
+    task.delay(duration, function()
+        TweenService:Create(frame, TweenInfo.new(0.25), {Position = UDim2.new(1, 20, 0, 18)}):Play()
+        task.wait(0.3)
+        gui:Destroy()
+    end)
+end
+
+local rejoinCooldown = false
+local function DoRejoin()
+    if rejoinCooldown then return end
+    rejoinCooldown = true
+    Notify("Rejoining...", 1.1)
+    task.wait(Config.Delay)
+    local ok = pcall(function()
+        local options = Instance.new("TeleportOptions")
+        options.ServerInstanceId = JobId
+        TeleportService:TeleportAsync(PlaceId, {LocalPlayer}, options)
+    end)
+    if not ok then
+        pcall(function()
+            TeleportService:TeleportToPlaceInstance(PlaceId, JobId, LocalPlayer)
+        end)
+    end
+    task.delay(3, function() rejoinCooldown = false end)
+end
+
+local function DoServerHop()
+    Notify("Server Hopping...", 1.1)
+    task.wait(0.35)
+    pcall(function() TeleportService:Teleport(PlaceId, LocalPlayer) end)
+end
+
+local function Copy(text, label)
+    if setclipboard then
+        setclipboard(tostring(text))
+        Notify(label .. " copied!", 1.5)
+    else
+        Notify("Clipboard not supported", 1.5)
+    end
+end
+
+local function TimeAgo(ts)
+    local diff = os.time() - (ts or 0)
+    if diff < 60 then return diff .. "s ago" end
+    if diff < 3600 then return math.floor(diff / 60) .. "m ago" end
+    if diff < 86400 then return math.floor(diff / 3600) .. "h ago" end
+    return math.floor(diff / 86400) .. "d ago"
+end
+
+-- FIXED DRAG: uses only UserInputService, no overlapping blockers that kill drag
+local function MakeDraggable(frame, onEnd)
+    local dragging = false
+    local dragStart, startPos
+
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+        end
+    end)
+
+    frame.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            if dragging then
+                dragging = false
+                if onEnd then onEnd() end
+            end
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + delta.X,
+                startPos.Y.Scale, startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+
+local function GetInputName(input)
+    if input.UserInputType == Enum.UserInputType.Keyboard then
+        return input.KeyCode.Name, "KeyCode"
+    elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+        return "Mouse1", "UserInputType"
+    elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+        return "Mouse2", "UserInputType"
+    elseif input.UserInputType == Enum.UserInputType.MouseButton3 then
+        return "Mouse3", "UserInputType"
+    end
+    if input.KeyCode and input.KeyCode ~= Enum.KeyCode.Unknown then
+        local n = input.KeyCode.Name
+        if n:find("Mouse") or n:find("Button") or n == "XButton1" or n == "XButton2" then
+            return n, "KeyCode"
+        end
+    end
+    return nil, nil
+end
+
+local function MatchInput(input, name, itype)
+    if itype == "KeyCode" then return input.KeyCode.Name == name end
+    if itype == "UserInputType" then
+        if name == "Mouse1" then return input.UserInputType == Enum.UserInputType.MouseButton1 end
+        if name == "Mouse2" then return input.UserInputType == Enum.UserInputType.MouseButton2 end
+        if name == "Mouse3" then return input.UserInputType == Enum.UserInputType.MouseButton3 end
+    end
+    return false
+end
+
+-- GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "RejoinAutoHub"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+pcall(function() ScreenGui.Parent = CoreGui end)
+if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+
+local Main = Instance.new("Frame")
+Main.Name = "Main"
+Main.Size = UDim2.new(0, 380, 0, 520)
+Main.Position = UDim2.new(Config.MainPos.X, Config.MainPos.XOff, Config.MainPos.Y, Config.MainPos.YOff)
+Main.BackgroundColor3 = T.Bg
+Main.BorderSizePixel = 0
+Main.Active = true
+Main.Parent = ScreenGui
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Color = T.Stroke
+MainStroke.Thickness = 1.4
+MainStroke.Parent = Main
+
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.BackgroundTransparency = 1
+TitleBar.Parent = Main
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -55, 1, 0)
+Title.Position = UDim2.new(0, 16, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "Rejoin Auto"
+Title.TextColor3 = T.Text
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 16
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = TitleBar
+
+local HideBtn = Instance.new("TextButton")
+HideBtn.Size = UDim2.new(0, 32, 0, 26)
+HideBtn.Position = UDim2.new(1, -42, 0, 7)
+HideBtn.BackgroundColor3 = T.Button
+HideBtn.Text = "−"
+HideBtn.TextColor3 = T.SubText
+HideBtn.Font = Enum.Font.GothamBold
+HideBtn.TextSize = 17
+HideBtn.Parent = TitleBar
+Instance.new("UICorner", HideBtn).CornerRadius = UDim.new(0, 6)
+
+local TabBar = Instance.new("Frame")
+TabBar.Size = UDim2.new(1, -24, 0, 34)
+TabBar.Position = UDim2.new(0, 12, 0, 44)
+TabBar.BackgroundTransparency = 1
+TabBar.Parent = Main
+
+local tabs = {"Main", "Favorites", "Config", "Theme"}
+local tabButtons = {}
+local pages = {}
+local minimizeTimer = 0
+local mouseOverHub = false
+local timeLabels = {} -- for live update
+
+local function ResetMinimizeTimer()
+    minimizeTimer = 0
+end
+
+local function SwitchTab(name)
+    for n, btn in pairs(tabButtons) do
+        btn.BackgroundColor3 = (n == name) and T.TabActive or T.TabInactive
+        btn.TextColor3 = (n == name) and T.Text or T.SubText
+    end
+    for n, page in pairs(pages) do
+        page.Visible = (n == name)
+    end
+    ResetMinimizeTimer()
+end
+
+for i, name in ipairs(tabs) do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 84, 0, 32)
+    btn.Position = UDim2.new(0, (i - 1) * 90, 0, 0)
+    btn.BackgroundColor3 = (name == "Main") and T.TabActive or T.TabInactive
+    btn.Text = name
+    btn.TextColor3 = (name == "Main") and T.Text or T.SubText
+    btn.Font = Enum.Font.GothamMedium
+    btn.TextSize = 13
+    btn.Parent = TabBar
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 7)
+    tabButtons[name] = btn
+    btn.MouseButton1Click:Connect(function() SwitchTab(name) end)
+end
+
+local PageContainer = Instance.new("Frame")
+PageContainer.Size = UDim2.new(1, -24, 1, -94)
+PageContainer.Position = UDim2.new(0, 12, 0, 86)
+PageContainer.BackgroundTransparency = 1
+PageContainer.ClipsDescendants = true
+PageContainer.Parent = Main
+
+local function CreatePage(name)
+    local p = Instance.new("Frame")
+    p.Size = UDim2.new(1, 0, 1, 0)
+    p.BackgroundTransparency = 1
+    p.Visible = (name == "Main")
+    p.Parent = PageContainer
+    pages[name] = p
+    return p
+end
+
+-- MAIN
+local MainPage = CreatePage("Main")
+
+local StatsLabel = Instance.new("TextLabel")
+StatsLabel.Size = UDim2.new(1, 0, 0, 22)
+StatsLabel.Position = UDim2.new(0, 0, 0, 0)
+StatsLabel.BackgroundTransparency = 1
+StatsLabel.Text = "FPS: -- | Ping: -- | Players: --"
+StatsLabel.TextColor3 = Color3.fromRGB(Config.StatsColor.R, Config.StatsColor.G, Config.StatsColor.B)
+StatsLabel.Font = Enum.Font.Gotham
+StatsLabel.TextSize = 13
+StatsLabel.TextXAlignment = Enum.TextXAlignment.Left
+StatsLabel.Parent = MainPage
+
+local FloatBtn = Instance.new("TextButton")
+FloatBtn.Size = UDim2.new(0, 84, 0, 26)
+FloatBtn.Position = UDim2.new(0, 0, 0, 30)
+FloatBtn.BackgroundColor3 = Config.FloatStats and T.TabActive or T.Button
+FloatBtn.Text = Config.FloatStats and "Float ON" or "Float OFF"
+FloatBtn.TextColor3 = T.Text
+FloatBtn.Font = Enum.Font.GothamMedium
+FloatBtn.TextSize = 12
+FloatBtn.Parent = MainPage
+Instance.new("UICorner", FloatBtn).CornerRadius = UDim.new(0, 6)
+
+local ColorBtn = Instance.new("TextButton")
+ColorBtn.Size = UDim2.new(0, 70, 0, 26)
+ColorBtn.Position = UDim2.new(0, 92, 0, 30)
+ColorBtn.BackgroundColor3 = T.Button
+ColorBtn.Text = "Color"
+ColorBtn.TextColor3 = T.Text
+ColorBtn.Font = Enum.Font.GothamMedium
+ColorBtn.TextSize = 12
+ColorBtn.Parent = MainPage
+Instance.new("UICorner", ColorBtn).CornerRadius = UDim.new(0, 6)
+
+local SizeBtn = Instance.new("TextButton")
+SizeBtn.Size = UDim2.new(0, 78, 0, 26)
+SizeBtn.Position = UDim2.new(0, 170, 0, 30)
+SizeBtn.BackgroundColor3 = T.Button
+SizeBtn.Text = "Size " .. (Config.FloatSize or 2)
+SizeBtn.TextColor3 = T.Text
+SizeBtn.Font = Enum.Font.GothamMedium
+SizeBtn.TextSize = 12
+SizeBtn.Parent = MainPage
+Instance.new("UICorner", SizeBtn).CornerRadius = UDim.new(0, 6)
+
+local function MakeRow(parent, y, labelText, btnText, w)
+    local lab = Instance.new("TextLabel")
+    lab.Size = UDim2.new(0, 120, 0, 26)
+    lab.Position = UDim2.new(0, 0, 0, y)
+    lab.BackgroundTransparency = 1
+    lab.Text = labelText
+    lab.TextColor3 = T.SubText
+    lab.Font = Enum.Font.Gotham
+    lab.TextSize = 13
+    lab.TextXAlignment = Enum.TextXAlignment.Left
+    lab.Parent = parent
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, w or 150, 0, 30)
+    btn.Position = UDim2.new(1, -(w or 150), 0, y - 2)
+    btn.BackgroundColor3 = T.Button
+    btn.Text = btnText
+    btn.TextColor3 = T.Text
+    btn.Font = Enum.Font.GothamMedium
+    btn.TextSize = 13
+    btn.Parent = parent
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    return btn
+end
+
+local KeyBtn = MakeRow(MainPage, 72, "Rejoin Key:", Config.KeyCode)
+local ToggleBtn = MakeRow(MainPage, 114, "Toggle Key:", Config.ToggleKey)
+
+local DelayLab = Instance.new("TextLabel")
+DelayLab.Size = UDim2.new(0, 120, 0, 26)
+DelayLab.Position = UDim2.new(0, 0, 0, 156)
+DelayLab.BackgroundTransparency = 1
+DelayLab.Text = "Delay (s):"
+DelayLab.TextColor3 = T.SubText
+DelayLab.Font = Enum.Font.Gotham
+DelayLab.TextSize = 13
+DelayLab.TextXAlignment = Enum.TextXAlignment.Left
+DelayLab.Parent = MainPage
+
+local DelayBox = Instance.new("TextBox")
+DelayBox.Size = UDim2.new(0, 64, 0, 30)
+DelayBox.Position = UDim2.new(1, -64, 0, 154)
+DelayBox.BackgroundColor3 = T.Button
+DelayBox.Text = tostring(Config.Delay)
+DelayBox.TextColor3 = T.Text
+DelayBox.Font = Enum.Font.GothamMedium
+DelayBox.TextSize = 13
+DelayBox.Parent = MainPage
+Instance.new("UICorner", DelayBox).CornerRadius = UDim.new(0, 6)
+
+local AFKBtn = MakeRow(MainPage, 198, "Anti-AFK:", Config.AntiAFK and "ON" or "OFF", 90)
+AFKBtn.BackgroundColor3 = Config.AntiAFK and T.TabActive or T.Button
+
+local function MakeAction(parent, y, text)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(1, 0, 0, 36)
+    b.Position = UDim2.new(0, 0, 0, y)
+    b.BackgroundColor3 = T.Accent
+    b.Text = text
+    b.TextColor3 = T.Text
+    b.Font = Enum.Font.GothamMedium
+    b.TextSize = 13
+    b.Parent = parent
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 7)
+    return b
+end
+
+local RejoinBtn = MakeAction(MainPage, 250, "Rejoin Same Server")
+local HopBtn = MakeAction(MainPage, 296, "Server Hop")
+local CopyJobBtn = MakeAction(MainPage, 342, "Copy JobId")
+local CopyPlaceBtn = MakeAction(MainPage, 388, "Copy PlaceId")
+
+-- FAVORITES
+local FavPage = CreatePage("Favorites")
+
+local AddFavBtn = Instance.new("TextButton")
+AddFavBtn.Size = UDim2.new(1, 0, 0, 36)
+AddFavBtn.Position = UDim2.new(0, 0, 0, 0)
+AddFavBtn.BackgroundColor3 = T.Accent
+AddFavBtn.Text = "+ Add Current Server"
+AddFavBtn.TextColor3 = T.Text
+AddFavBtn.Font = Enum.Font.GothamMedium
+AddFavBtn.TextSize = 13
+AddFavBtn.Parent = FavPage
+Instance.new("UICorner", AddFavBtn).CornerRadius = UDim.new(0, 7)
+
+local FavScroll = Instance.new("ScrollingFrame")
+FavScroll.Size = UDim2.new(1, 0, 1, -46)
+FavScroll.Position = UDim2.new(0, 0, 0, 44)
+FavScroll.BackgroundTransparency = 1
+FavScroll.BorderSizePixel = 0
+FavScroll.ScrollBarThickness = 5
+FavScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+FavScroll.Parent = FavPage
+
+local function RefreshFavorites()
+    for _, c in ipairs(FavScroll:GetChildren()) do
+        if c:IsA("Frame") then c:Destroy() end
+    end
+    timeLabels = {}
+    Config.Favorites = Config.Favorites or {}
+    local y = 0
+    for i, fav in ipairs(Config.Favorites) do
+        local row = Instance.new("Frame")
+        row.Size = UDim2.new(1, -8, 0, 64)
+        row.Position = UDim2.new(0, 0, 0, y)
+        row.BackgroundColor3 = T.Button
+        row.BorderSizePixel = 0
+        row.Parent = FavScroll
+        Instance.new("UICorner", row).CornerRadius = UDim.new(0, 7)
+
+        local info = Instance.new("TextButton")
+        info.Size = UDim2.new(1, -80, 0, 26)
+        info.Position = UDim2.new(0, 12, 0, 6)
+        info.BackgroundTransparency = 1
+        info.Text = "Job: " .. string.sub(fav.JobId, 1, 20) .. "..."
+        info.TextColor3 = T.Text
+        info.Font = Enum.Font.Gotham
+        info.TextSize = 12
+        info.TextXAlignment = Enum.TextXAlignment.Left
+        info.Parent = row
+        info.MouseButton1Click:Connect(function()
+            if setclipboard then
+                setclipboard(fav.JobId)
+                Notify("JobId copied!", 1.4)
+            end
+        end)
+
+        local timeLab = Instance.new("TextLabel")
+        timeLab.Size = UDim2.new(1, -80, 0, 22)
+        timeLab.Position = UDim2.new(0, 12, 0, 34)
+        timeLab.BackgroundTransparency = 1
+        timeLab.Text = TimeAgo(fav.LastJoin)
+        timeLab.TextColor3 = T.SubText
+        timeLab.Font = Enum.Font.Gotham
+        timeLab.TextSize = 12
+        timeLab.TextXAlignment = Enum.TextXAlignment.Left
+        timeLab.Parent = row
+        table.insert(timeLabels, {label = timeLab, ts = fav.LastJoin})
+
+        local joinBtn = Instance.new("TextButton")
+        joinBtn.Size = UDim2.new(0, 60, 0, 26)
+        joinBtn.Position = UDim2.new(1, -70, 0, 6)
+        joinBtn.BackgroundColor3 = T.TabActive
+        joinBtn.Text = "Join"
+        joinBtn.TextColor3 = T.Text
+        joinBtn.Font = Enum.Font.GothamMedium
+        joinBtn.TextSize = 12
+        joinBtn.Parent = row
+        Instance.new("UICorner", joinBtn).CornerRadius = UDim.new(0, 5)
+        joinBtn.MouseButton1Click:Connect(function()
+            Notify("Joining favorite...", 1.2)
+            local ok = pcall(function()
+                local options = Instance.new("TeleportOptions")
+                options.ServerInstanceId = fav.JobId
+                TeleportService:TeleportAsync(fav.PlaceId or PlaceId, {LocalPlayer}, options)
+            end)
+            if not ok then
+                pcall(function()
+                    TeleportService:TeleportToPlaceInstance(fav.PlaceId or PlaceId, fav.JobId, LocalPlayer)
+                end)
+            end
+        end)
+
+        local delBtn = Instance.new("TextButton")
+        delBtn.Size = UDim2.new(0, 60, 0, 22)
+        delBtn.Position = UDim2.new(1, -70, 0, 36)
+        delBtn.BackgroundColor3 = Color3.fromRGB(60, 30, 30)
+        delBtn.Text = "Del"
+        delBtn.TextColor3 = Color3.fromRGB(255, 180, 180)
+        delBtn.Font = Enum.Font.Gotham
+        delBtn.TextSize = 11
+        delBtn.Parent = row
+        Instance.new("UICorner", delBtn).CornerRadius = UDim.new(0, 5)
+        delBtn.MouseButton1Click:Connect(function()
+            table.remove(Config.Favorites, i)
+            SaveConfig()
+            RefreshFavorites()
+        end)
+
+        y = y + 72
+    end
+    FavScroll.CanvasSize = UDim2.new(0, 0, 0, y)
+end
+
+local function AddFavorite()
+    Config.Favorites = Config.Favorites or {}
+    for _, fav in ipairs(Config.Favorites) do
+        if fav.JobId == JobId then
+            fav.LastJoin = os.time()
+            SaveConfig()
+            Notify("Favorite updated", 1.4)
+            RefreshFavorites()
+            return
+        end
+    end
+    table.insert(Config.Favorites, {
+        JobId = JobId,
+        PlaceId = PlaceId,
+        LastJoin = os.time()
+    })
+    SaveConfig()
+    Notify("Server added", 1.5)
+    RefreshFavorites()
+end
+
+RefreshFavorites()
+AddFavBtn.MouseButton1Click:Connect(function()
+    AddFavorite()
+    ResetMinimizeTimer()
+end)
+
+-- Live time update every 5s
+task.spawn(function()
+    while ScreenGui.Parent do
+        for _, entry in ipairs(timeLabels) do
+            if entry.label and entry.label.Parent then
+                entry.label.Text = TimeAgo(entry.ts)
+            end
+        end
+        task.wait(5)
+    end
+end)
+
+-- CONFIG
+local ConfigPage = CreatePage("Config")
+
+local AutoMinBtn = MakeRow(ConfigPage, 0, "Auto Minimize:", (Config.AutoMinimize ~= false) and "ON" or "OFF", 90)
+AutoMinBtn.BackgroundColor3 = (Config.AutoMinimize ~= false) and T.TabActive or T.Button
+
+local MinTimeLab = Instance.new("TextLabel")
+MinTimeLab.Size = UDim2.new(0, 180, 0, 26)
+MinTimeLab.Position = UDim2.new(0, 0, 0, 50)
+MinTimeLab.BackgroundTransparency = 1
+MinTimeLab.Text = "Minimize after (s):"
+MinTimeLab.TextColor3 = T.SubText
+MinTimeLab.Font = Enum.Font.Gotham
+MinTimeLab.TextSize = 13
+MinTimeLab.TextXAlignment = Enum.TextXAlignment.Left
+MinTimeLab.Parent = ConfigPage
+
+local MinTimeBox = Instance.new("TextBox")
+MinTimeBox.Size = UDim2.new(0, 64, 0, 30)
+MinTimeBox.Position = UDim2.new(1, -64, 0, 48)
+MinTimeBox.BackgroundColor3 = T.Button
+MinTimeBox.Text = tostring(Config.AutoMinimizeTime or 10)
+MinTimeBox.TextColor3 = T.Text
+MinTimeBox.Font = Enum.Font.GothamMedium
+MinTimeBox.TextSize = 13
+MinTimeBox.Parent = ConfigPage
+Instance.new("UICorner", MinTimeBox).CornerRadius = UDim.new(0, 6)
+
+local InfoLab = Instance.new("TextLabel")
+InfoLab.Size = UDim2.new(1, 0, 0, 140)
+InfoLab.Position = UDim2.new(0, 0, 0, 110)
+InfoLab.BackgroundTransparency = 1
+InfoLab.Text = "Auto Minimize: fecha o hub depois de X segundos SEM o mouse em cima do layout.\n\nFloat Size: 5 tamanhos.\n\nTemas: escolha e re-execute.\n\nArrastar funciona agora."
+InfoLab.TextColor3 = T.SubText
+InfoLab.Font = Enum.Font.Gotham
+InfoLab.TextSize = 12
+InfoLab.TextWrapped = true
+InfoLab.TextXAlignment = Enum.TextXAlignment.Left
+InfoLab.TextYAlignment = Enum.TextYAlignment.Top
+InfoLab.Parent = ConfigPage
+
+-- THEME
+local ThemePage = CreatePage("Theme")
+local themeNames = {"Dark", "Light", "Midnight", "Ember", "Forest"}
+for i, name in ipairs(themeNames) do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 48)
+    btn.Position = UDim2.new(0, 0, 0, (i - 1) * 56)
+    btn.BackgroundColor3 = (Config.Theme == name) and T.TabActive or T.Button
+    btn.Text = name
+    btn.TextColor3 = T.Text
+    btn.Font = Enum.Font.GothamMedium
+    btn.TextSize = 15
+    btn.Parent = ThemePage
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    btn.MouseButton1Click:Connect(function()
+        Config.Theme = name
+        SaveConfig()
+        Notify("Theme: " .. name .. " — re-execute to apply", 2.5)
+        ResetMinimizeTimer()
+    end)
+end
+
+-- Float
+local floatSizes = {
+    {170, 28, 12},
+    {200, 32, 13},
+    {230, 36, 14},
+    {270, 40, 15},
+    {310, 46, 16}
+}
+local fs = floatSizes[Config.FloatSize or 2] or floatSizes[2]
+
+local FloatFrame = Instance.new("Frame")
+FloatFrame.Name = "FloatStats"
+FloatFrame.Size = UDim2.new(0, fs[1], 0, fs[2])
+FloatFrame.Position = UDim2.new(Config.FloatPos.X, Config.FloatPos.XOff, Config.FloatPos.Y, Config.FloatPos.YOff)
+FloatFrame.BackgroundColor3 = T.Bg
+FloatFrame.BackgroundTransparency = 0.12
+FloatFrame.BorderSizePixel = 0
+FloatFrame.Visible = Config.FloatStats
+FloatFrame.Active = true
+FloatFrame.Parent = ScreenGui
+Instance.new("UICorner", FloatFrame).CornerRadius = UDim.new(0, 8)
+local FloatStroke = Instance.new("UIStroke")
+FloatStroke.Color = T.Stroke
+FloatStroke.Thickness = 1.1
+FloatStroke.Parent = FloatFrame
+
+local FloatLabel = Instance.new("TextLabel")
+FloatLabel.Size = UDim2.new(1, -14, 1, 0)
+FloatLabel.Position = UDim2.new(0, 8, 0, 0)
+FloatLabel.BackgroundTransparency = 1
+FloatLabel.Text = "FPS: -- | Ping: --"
+FloatLabel.TextColor3 = Color3.fromRGB(Config.StatsColor.R, Config.StatsColor.G, Config.StatsColor.B)
+FloatLabel.Font = Enum.Font.GothamMedium
+FloatLabel.TextSize = fs[3]
+FloatLabel.TextXAlignment = Enum.TextXAlignment.Left
+FloatLabel.Parent = FloatFrame
+
+-- Mini
+local Mini = Instance.new("Frame")
+Mini.Name = "Mini"
+Mini.Size = UDim2.new(0, 46, 0, 46)
+Mini.Position = UDim2.new(Config.MiniPos.X, Config.MiniPos.XOff, Config.MiniPos.Y, Config.MiniPos.YOff)
+Mini.BackgroundColor3 = T.Bg
+Mini.BorderSizePixel = 0
+Mini.Visible = false
+Mini.Active = true
+Mini.Parent = ScreenGui
+Instance.new("UICorner", Mini).CornerRadius = UDim.new(0, 10)
+local MiniStroke = Instance.new("UIStroke")
+MiniStroke.Color = T.Stroke
+MiniStroke.Thickness = 1.2
+MiniStroke.Parent = Mini
+
+local MiniBtn = Instance.new("TextButton")
+MiniBtn.Size = UDim2.new(1, 0, 1, 0)
+MiniBtn.BackgroundTransparency = 1
+MiniBtn.Text = "R"
+MiniBtn.TextColor3 = T.Text
+MiniBtn.Font = Enum.Font.GothamBold
+MiniBtn.TextSize = 18
+MiniBtn.Parent = Mini
+
+-- Drag (fixed)
+MakeDraggable(Main, function()
+    Config.MainPos = {X = Main.Position.X.Scale, Y = Main.Position.Y.Scale, XOff = Main.Position.X.Offset, YOff = Main.Position.Y.Offset}
+    SaveConfig()
+end)
+MakeDraggable(Mini, function()
+    Config.MiniPos = {X = Mini.Position.X.Scale, Y = Mini.Position.Y.Scale, XOff = Mini.Position.X.Offset, YOff = Mini.Position.Y.Offset}
+    SaveConfig()
+end)
+MakeDraggable(FloatFrame, function()
+    Config.FloatPos = {X = FloatFrame.Position.X.Scale, Y = FloatFrame.Position.Y.Scale, XOff = FloatFrame.Position.X.Offset, YOff = FloatFrame.Position.Y.Offset}
+    SaveConfig()
+end)
+
+local function SetHidden(state)
+    Config.Hidden = state
+    Main.Visible = not state
+    Mini.Visible = state
+    SaveConfig()
+end
+if Config.Hidden then SetHidden(true) end
+
+HideBtn.MouseButton1Click:Connect(function() SetHidden(true) end)
+MiniBtn.MouseButton1Click:Connect(function() SetHidden(false) end)
+
+Main.MouseEnter:Connect(function()
+    mouseOverHub = true
+    ResetMinimizeTimer()
+end)
+Main.MouseLeave:Connect(function()
+    mouseOverHub = false
+end)
+
+task.spawn(function()
+    while ScreenGui.Parent do
+        if (Config.AutoMinimize ~= false) and Main.Visible and not Config.Hidden and not mouseOverHub then
+            minimizeTimer = minimizeTimer + 0.5
+            if minimizeTimer >= (Config.AutoMinimizeTime or 10) then
+                SetHidden(true)
+                minimizeTimer = 0
+            end
+        else
+            if mouseOverHub then minimizeTimer = 0 end
+        end
+        task.wait(0.5)
+    end
+end)
+
+FloatBtn.MouseButton1Click:Connect(function()
+    Config.FloatStats = not Config.FloatStats
+    FloatFrame.Visible = Config.FloatStats
+    FloatBtn.Text = Config.FloatStats and "Float ON" or "Float OFF"
+    FloatBtn.BackgroundColor3 = Config.FloatStats and T.TabActive or T.Button
+    SaveConfig()
+    ResetMinimizeTimer()
+end)
+
+SizeBtn.MouseButton1Click:Connect(function()
+    Config.FloatSize = (Config.FloatSize or 2) % 5 + 1
+    local s = floatSizes[Config.FloatSize]
+    FloatFrame.Size = UDim2.new(0, s[1], 0, s[2])
+    FloatLabel.TextSize = s[3]
+    SizeBtn.Text = "Size " .. Config.FloatSize
+    SaveConfig()
+    ResetMinimizeTimer()
+end)
+
+local colors = {
+    {140,140,145},{0,200,120},{0,160,255},{255,180,50},{255,80,80},{200,120,255},{255,255,255}
+}
+local colorIdx = 1
+ColorBtn.MouseButton1Click:Connect(function()
+    colorIdx = colorIdx % #colors + 1
+    local c = colors[colorIdx]
+    Config.StatsColor = {R=c[1],G=c[2],B=c[3]}
+    local col = Color3.fromRGB(c[1],c[2],c[3])
+    StatsLabel.TextColor3 = col
+    FloatLabel.TextColor3 = col
+    SaveConfig()
+    ResetMinimizeTimer()
+end)
+
+local waitingFor = nil
+KeyBtn.MouseButton1Click:Connect(function() waitingFor = "rejoin" KeyBtn.Text = "..." ResetMinimizeTimer() end)
+ToggleBtn.MouseButton1Click:Connect(function() waitingFor = "toggle" ToggleBtn.Text = "..." ResetMinimizeTimer() end)
+
+UserInputService.InputBegan:Connect(function(input, gp)
+    if waitingFor then
+        local name, itype = GetInputName(input)
+        if name then
+            if waitingFor == "rejoin" then
+                Config.KeyCode = name
+                Config.KeyType = itype
+                KeyBtn.Text = name
+            else
+                Config.ToggleKey = name
+                Config.ToggleType = itype
+                ToggleBtn.Text = name
+            end
+            waitingFor = nil
+            SaveConfig()
+        end
+        return
+    end
+    if gp then return end
+    if MatchInput(input, Config.KeyCode, Config.KeyType) then DoRejoin()
+    elseif MatchInput(input, Config.ToggleKey, Config.ToggleType) then SetHidden(not Config.Hidden) end
+end)
+
+DelayBox.FocusLost:Connect(function()
+    local n = tonumber(DelayBox.Text)
+    if n and n >= 0.5 and n <= 10 then
+        Config.Delay = math.floor(n * 10) / 10
+        DelayBox.Text = tostring(Config.Delay)
+        SaveConfig()
+    else
+        DelayBox.Text = tostring(Config.Delay)
+    end
+    ResetMinimizeTimer()
+end)
+
+MinTimeBox.FocusLost:Connect(function()
+    local n = tonumber(MinTimeBox.Text)
+    if n and n >= 3 and n <= 120 then
+        Config.AutoMinimizeTime = math.floor(n)
+        MinTimeBox.Text = tostring(Config.AutoMinimizeTime)
+        SaveConfig()
+    else
+        MinTimeBox.Text = tostring(Config.AutoMinimizeTime or 10)
+    end
+    ResetMinimizeTimer()
+end)
+
+AutoMinBtn.MouseButton1Click:Connect(function()
+    Config.AutoMinimize = not (Config.AutoMinimize ~= false)
+    AutoMinBtn.Text = Config.AutoMinimize and "ON" or "OFF"
+    AutoMinBtn.BackgroundColor3 = Config.AutoMinimize and T.TabActive or T.Button
+    SaveConfig()
+    ResetMinimizeTimer()
+end)
+
+local afkConn
+local function ToggleAFK(state)
+    Config.AntiAFK = state
+    AFKBtn.Text = state and "ON" or "OFF"
+    AFKBtn.BackgroundColor3 = state and T.TabActive or T.Button
+    SaveConfig()
+    if afkConn then afkConn:Disconnect() afkConn = nil end
+    if state then
+        afkConn = LocalPlayer.Idled:Connect(function()
+            pcall(function()
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton2(Vector2.new())
+            end)
+        end)
+    end
+end
+if Config.AntiAFK then ToggleAFK(true) end
+AFKBtn.MouseButton1Click:Connect(function() ToggleAFK(not Config.AntiAFK) ResetMinimizeTimer() end)
+
+RejoinBtn.MouseButton1Click:Connect(function() DoRejoin() ResetMinimizeTimer() end)
+HopBtn.MouseButton1Click:Connect(function() DoServerHop() ResetMinimizeTimer() end)
+CopyJobBtn.MouseButton1Click:Connect(function() Copy(JobId, "JobId") ResetMinimizeTimer() end)
+CopyPlaceBtn.MouseButton1Click:Connect(function() Copy(PlaceId, "PlaceId") ResetMinimizeTimer() end)
+
+local fps, frames, last = 60, 0, tick()
+RunService.RenderStepped:Connect(function()
+    frames += 1
+    if tick() - last >= 0.2 then
+        fps = math.floor(frames / (tick() - last))
+        frames = 0
+        last = tick()
+    end
+end)
+
+task.spawn(function()
+    while ScreenGui.Parent do
+        local ping = 0
+        pcall(function()
+            local item = Stats.Network.ServerStatsItem["Data Ping"]
+            if item then ping = math.floor(item:GetValue()) end
+        end)
+        if ping == 0 then
+            pcall(function() ping = math.floor(LocalPlayer:GetNetworkPing() * 1000) end)
+        end
+        local count = #Players:GetPlayers()
+        StatsLabel.Text = string.format("FPS: %d | Ping: %dms | Players: %d", fps, ping, count)
+        FloatLabel.Text = string.format("FPS: %d | Ping: %dms", fps, ping)
+        task.wait(0.15)
+    end
+end)
+
+Notify("Rejoin Auto Executed!", 2.5)
